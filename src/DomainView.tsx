@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Columns3, FolderPlus, LayoutGrid, Pencil, Plus, Table2, Trash2 } from 'lucide-react'
+import { ClipboardCopy, Columns3, FolderPlus, LayoutGrid, ListTodo, Pencil, Plus, Table2, Trash2 } from 'lucide-react'
 import BoardView from './BoardView'
 import TableView from './TableView'
 import TaskEditor from './TaskEditor'
@@ -14,7 +14,11 @@ import PriorityPill from './components/PriorityPill'
 import ProgressBar from './components/ProgressBar'
 import Segmented from './components/Segmented'
 import StatusSelect from './components/StatusSelect'
-import { useDeleteWithUndo } from './components/useToast'
+import TodoList from './components/TodoList'
+import { useDeleteWithUndo, useToast } from './components/useToast'
+import { groupProjects } from './claude/groups'
+import { buildQueue } from './claude/queue'
+import { ensureClaudeProjects } from './claude/seed'
 import { newProject, touch } from './data/make'
 import { useData } from './data/store'
 import type { Domain, Project, Task } from './data/types'
@@ -22,8 +26,9 @@ import { daysUntil } from './due'
 import { ACCENT, FOCUS_RING, MUTED_TEXT, SURFACE } from './theme'
 import { INPUT, compareTasks, statusesFor } from './ui'
 
-type View = 'projects' | 'board' | 'table'
+type View = 'list' | 'projects' | 'board' | 'table'
 const VIEWS: { value: View; label: string; icon: typeof LayoutGrid }[] = [
+  { value: 'list', label: 'List', icon: ListTodo },
   { value: 'projects', label: 'Projects', icon: LayoutGrid },
   { value: 'board', label: 'Board', icon: Columns3 },
   { value: 'table', label: 'Table', icon: Table2 },
@@ -31,17 +36,17 @@ const VIEWS: { value: View; label: string; icon: typeof LayoutGrid }[] = [
 
 function readView(domain: Domain): View {
   try {
-    const v = localStorage.getItem(`my-dashboard.view.${domain}`)
-    if (v === 'projects' || v === 'board' || v === 'table') return v
+    const v = localStorage.getItem(`my-dashboard.view2.${domain}`)
+    if (v === 'list' || v === 'projects' || v === 'board' || v === 'table') return v
   } catch {
     // storage unavailable
   }
-  return 'projects'
+  return 'list'
 }
 
 function writeView(domain: Domain, view: View) {
   try {
-    localStorage.setItem(`my-dashboard.view.${domain}`, view)
+    localStorage.setItem(`my-dashboard.view2.${domain}`, view)
   } catch {
     // storage unavailable
   }
@@ -122,6 +127,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
           {done}/{tasks.length}
         </span>
       </div>
+      {project.path && <p className={`mt-0.5 font-mono text-xs break-all ${MUTED_TEXT}`}>{project.path}</p>}
       <ProgressBar className="mt-2" value={done} max={tasks.length} accent={project.domain} label={`${project.name} progress`} />
 
       {tasks.length === 0 ? (
@@ -150,6 +156,7 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
 export default function DomainView({ domain }: { domain: Domain }) {
   const { data, apply } = useData()
   const { deleteProject } = useDeleteWithUndo()
+  const toast = useToast()
   const a = ACCENT[domain]
   const [view, setViewState] = useState<View>(() => readView(domain))
   const [picked, setPicked] = useState<string | null>(() => readProject(domain))
@@ -157,6 +164,16 @@ export default function DomainView({ domain }: { domain: Domain }) {
   const [newName, setNewName] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState('')
+
+  // Claude tab: create the Cowork / Code projects once per data load (the ref also survives StrictMode's double effect)
+  const loaded = data !== null
+  const seeded = useRef(false)
+  useEffect(() => {
+    if (domain !== 'claude' || !data || seeded.current) return
+    seeded.current = true
+    ensureClaudeProjects(data, apply)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [domain, loaded])
 
   if (!data) return null
 
@@ -224,6 +241,16 @@ export default function DomainView({ domain }: { domain: Domain }) {
     }`
 
   const Icon = a.icon
+  const grouped = domain === 'claude' ? groupProjects(projects) : null
+  const copyQueue = async () => {
+    const { text, count } = buildQueue(domainTasks, projects)
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ message: `Copied ${count} ${count === 1 ? 'task' : 'tasks'}` })
+    } catch {
+      toast({ message: 'Could not copy to the clipboard', tone: 'error' })
+    }
+  }
 
   return (
     <div className="mt-4 space-y-4">
@@ -239,6 +266,11 @@ export default function DomainView({ domain }: { domain: Domain }) {
               {domainTasks.length === 1 ? 'task' : 'tasks'}
             </div>
           </div>
+          {domain === 'claude' && (
+            <Button size="sm" accent={domain} icon={ClipboardCopy} onClick={copyQueue} className="ml-auto">
+              Copy queue
+            </Button>
+          )}
         </div>
         <dl className="grid grid-cols-4 gap-4 sm:gap-8">
           {stats.map((s) => (
@@ -262,17 +294,22 @@ export default function DomainView({ domain }: { domain: Domain }) {
             All
             <span className="text-xs tabular-nums opacity-70">{domainTasks.length}</span>
           </button>
-          {projects.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              aria-pressed={selected?.id === p.id}
-              onClick={() => select(p.id)}
-              className={chip(selected?.id === p.id)}
-            >
-              {p.name}
-              <span className="text-xs tabular-nums opacity-70">{counts.get(p.id) ?? 0}</span>
-            </button>
+          {(grouped ?? [{ key: 'all', label: '', projects }]).map((g) => (
+            <div key={g.key} role="group" aria-label={g.label || undefined} className="flex shrink-0 items-center gap-2">
+              {g.label && <span className={`text-xs font-medium ${MUTED_TEXT}`}>{g.label}</span>}
+              {g.projects.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={selected?.id === p.id}
+                  onClick={() => select(p.id)}
+                  className={chip(selected?.id === p.id)}
+                >
+                  {p.name}
+                  <span className="text-xs tabular-nums opacity-70">{counts.get(p.id) ?? 0}</span>
+                </button>
+              ))}
+            </div>
           ))}
           {creating ? (
             <form onSubmit={onAdd} className="shrink-0">
@@ -358,14 +395,25 @@ export default function DomainView({ domain }: { domain: Domain }) {
             <Segmented value={view} onChange={setView} options={VIEWS} label="View" accent={domain} />
           </div>
 
-          {view === 'board' ? (
+          {view === 'list' ? (
+            <div className={`${SURFACE} px-4 py-2`}>
+              <TodoList domain={domain} tasks={shownTasks} projects={projects} />
+            </div>
+          ) : view === 'board' ? (
             <BoardView domain={domain} projects={projects} tasks={shownTasks} selectedId={selected?.id} />
           ) : view === 'table' ? (
             <TableView domain={domain} projects={projects} tasks={shownTasks} selectedId={selected?.id} />
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-              {shownProjects.map((p) => (
-                <ProjectCard key={p.id} project={p} tasks={shownTasks.filter((t) => t.projectId === p.id).sort(compareTasks)} />
+            <div className="space-y-4">
+              {(grouped ? groupProjects(shownProjects) : [{ key: 'all', label: '', projects: shownProjects }]).map((g) => (
+                <div key={g.key}>
+                  {g.label && <h2 className={`mb-2 text-xs font-semibold tracking-wide uppercase ${MUTED_TEXT}`}>{g.label}</h2>}
+                  <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+                    {g.projects.map((p) => (
+                      <ProjectCard key={p.id} project={p} tasks={shownTasks.filter((t) => t.projectId === p.id).sort(compareTasks)} />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

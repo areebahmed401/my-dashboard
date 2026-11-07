@@ -24,7 +24,7 @@ export interface SyncResult {
   removed: number
 }
 
-async function tasksCalendarId(): Promise<string> {
+export async function tasksCalendarId(): Promise<string> {
   const cals = await listCalendars()
   const stored = getTasksCalendarId()
   if (stored && cals.some((c) => c.id === stored)) return stored

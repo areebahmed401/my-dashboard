@@ -27,6 +27,8 @@ export interface GEvent {
   start: EventTime
   end: EventTime
   extendedProperties?: { private?: Record<string, string> }
+  transparency?: 'opaque' | 'transparent' // transparent = shown as free
+  attendees?: { self?: boolean; responseStatus?: string }[]
 }
 
 export function canWrite(c: GCalendar | undefined): boolean {

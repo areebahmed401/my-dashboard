@@ -86,7 +86,7 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
       {isClaude && (
         <>
           <label className={LABEL}>
-            Repo
+            Repo / folder
             <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" className={FIELD} />
           </label>
           <label className={LABEL}>
