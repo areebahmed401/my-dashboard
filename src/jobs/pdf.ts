@@ -1,9 +1,10 @@
 import { toHtml } from './markdown'
 
 const PRINT_CSS = `
-@page { size: A4; margin: 16mm; }
+@page { size: A4; margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+body { padding: 16mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 body { font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10.5pt; line-height: 1.4; color: #111; }
 h1 { font-size: 20pt; line-height: 1.2; margin: 0 0 4pt; }
 h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: 0.08em; margin: 12pt 0 5pt; padding-bottom: 2pt; border-bottom: 0.5pt solid #999; break-after: avoid; }
