@@ -16,6 +16,7 @@ export interface Slot {
   end: Date
   task: Task
   part?: string // '1/2' when a long task is split across gaps
+  review?: true // a Claude task waiting for my review: a 15 min slot, whatever its estimate
 }
 export interface DayPlan {
   ymd: string
@@ -33,6 +34,7 @@ export const GRID_MIN = 15 // gaps shorter than this are dropped; "now" rounds u
 export const EVENT_BUFFER_MIN = 5
 export const SPLIT_ABOVE_MIN = 60 // only estimates longer than this may be split
 export const MIN_CHUNK_MIN = 30
+export const REVIEW_MIN = 15
 const DUE_SOON_DAYS = 2
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -61,6 +63,8 @@ export function atTime(ymd: string, hhmm: string): Date {
   return new Date(y, m, d, h, min)
 }
 
+export const isReview = (t: Task) => t.kind === 'claude' && t.status === 'review'
+
 // task.priority, one level higher (min P1) when overdue or due within 2 days
 export function effectivePriority(task: Task, today: string): Priority {
   if (task.due && dayDiff(today, task.due) <= DUE_SOON_DAYS) return Math.max(1, task.priority - 1) as Priority
@@ -71,6 +75,7 @@ export function effectivePriority(task: Task, today: string): Priority {
 export function orderTasks(tasks: Task[], today: string): Task[] {
   return tasks
     .filter((t) => t.status !== 'done' && t.status !== 'blocked') // blocked tasks wait, they are not planned
+    .filter((t) => !(t.kind === 'claude' && t.auto && (t.status === 'queued' || t.status === 'in-progress'))) // Claude does these
     .sort((a, b) => {
       const pa = effectivePriority(a, today)
       const pb = effectivePriority(b, today)
@@ -165,13 +170,13 @@ export function planDays(
 
   const place = (gap: OpenGap, task: Task, min: number, part?: string) => {
     const end = new Date(gap.start.getTime() + min * MIN)
-    plans[gap.day].slots.push({ start: gap.start, end, task, part })
+    plans[gap.day].slots.push({ start: gap.start, end, task, part, ...(isReview(task) && { review: true as const }) })
     gap.start = end
   }
 
   const unscheduled: Task[] = []
   for (const task of orderTasks(tasks, today)) {
-    const estimate = Math.max(1, task.estimateMin)
+    const estimate = isReview(task) ? REVIEW_MIN : Math.max(1, task.estimateMin)
     const whole = gaps.find((g) => gapMin(g) >= estimate)
     if (whole) {
       place(whole, task, estimate)

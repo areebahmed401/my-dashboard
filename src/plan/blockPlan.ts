@@ -22,7 +22,7 @@ export async function blockSlots(ymd: string, slots: Slot[]): Promise<BlockResul
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   for (const s of slots) {
     await insertEvent(calendarId, {
-      summary: s.task.title,
+      summary: s.review ? `Review: ${s.task.title}` : s.task.title,
       description: s.part ? `Planned by the dashboard (part ${s.part})` : 'Planned by the dashboard',
       start: { dateTime: toRfc3339(s.start), timeZone },
       end: { dateTime: toRfc3339(s.end), timeZone },

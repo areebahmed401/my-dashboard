@@ -61,7 +61,11 @@ const LABEL = 'mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutr
 function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domain }) {
   const { data, apply } = useData()
   const toast = useToast()
-  const projects = useMemo(() => data?.projects ?? [], [data])
+  // On a domain tab only that domain's projects are offered; on Home, all of them
+  const projects = useMemo(
+    () => (data?.projects ?? []).filter((p) => !domain || p.domain === domain),
+    [data, domain],
+  )
   const [picked, setProjectId] = useState(() => defaultProject(projects, domain))
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('')
@@ -144,7 +148,7 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
             onChange={(e) => setProjectId(e.target.value)}
             className={`${INPUT} w-full`}
           >
-            {DOMAINS.map((d) => {
+            {(domain ? [domain] : DOMAINS).map((d) => {
               const list = projects.filter((p) => p.domain === d)
               if (list.length === 0) return null
               return (

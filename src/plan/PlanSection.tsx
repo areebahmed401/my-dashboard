@@ -16,7 +16,7 @@ import { connect, loadGis } from '../gcal/auth'
 import { ACCENT, FAINT_TEXT, FOCUS_RING, MUTED_TEXT, SURFACE } from '../theme'
 import WorkHoursEditor from './WorkHoursEditor'
 import { blockSlots } from './blockPlan'
-import { addDaysYmd, atTime, planDays, ymdOf } from './plan'
+import { REVIEW_MIN, addDaysYmd, atTime, isReview, planDays, ymdOf } from './plan'
 import type { Busy, DayPlan, Slot } from './plan'
 import { useBusy } from './useBusy'
 
@@ -59,6 +59,7 @@ export default function PlanSection({ data }: { data: DashboardData }) {
 
   const domainOf = useMemo(() => new Map(data.projects.map((p) => [p.id, p.domain])), [data.projects])
   const tasks = useMemo(() => data.tasks.filter((t) => domainOf.has(t.projectId)), [data.tasks, domainOf])
+  const reviewCount = tasks.filter(isReview).length
   const hasOpen = tasks.some((t) => t.status !== 'done')
   const plan = useMemo(
     () => planDays(days, data.settings, busy.busyByDay, tasks, today, now),
@@ -98,6 +99,14 @@ export default function PlanSection({ data }: { data: DashboardData }) {
           <ListChecks className="size-4 text-neutral-500 dark:text-neutral-400" aria-hidden />
           Plan
         </h2>
+        {reviewCount > 0 && (
+          <a
+            href="#claude"
+            className={`rounded-full bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium text-violet-700 transition-colors duration-150 hover:bg-violet-500/20 dark:text-violet-400 ${FOCUS_RING} focus-visible:ring-violet-500/50`}
+          >
+            Needs review ({reviewCount})
+          </a>
+        )}
         <Segmented value={view} onChange={setView} options={VIEWS} label="Plan range" size="sm" />
       </div>
 
@@ -303,11 +312,14 @@ function SlotRow({ slot, domain, onDone }: { slot: Slot; domain: Domain; onDone:
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`size-2 shrink-0 rounded-full ${ACCENT[domain].dot}`} aria-hidden />
-          <span className="min-w-0 truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">{task.title}</span>
+          <span className="min-w-0 truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+            {slot.review && <span className="text-violet-700 dark:text-violet-400">Review: </span>}
+            {task.title}
+          </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <PriorityPill priority={task.priority} />
-          <EstimateBadge minutes={task.estimateMin} />
+          <EstimateBadge minutes={slot.review ? REVIEW_MIN : task.estimateMin} />
           {slot.part && <span className={`text-xs tabular-nums ${FAINT_TEXT}`}>part {slot.part}</span>}
         </div>
       </div>

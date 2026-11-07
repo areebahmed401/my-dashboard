@@ -12,7 +12,7 @@ export function buildQueue(tasks: Task[], projects: Project[]): { text: string; 
   const text = open
     .map((t) => {
       const lines = [
-        `- [P${t.priority}] ${t.title} (${names.get(t.projectId) ?? '?'} · ${STATUS_LABEL[t.status] ?? t.status} · ${formatEstimate(t.estimateMin)})`,
+        `- [P${t.priority}] ${t.title} (${names.get(t.projectId) ?? '?'} · ${STATUS_LABEL[t.status] ?? t.status} · ${formatEstimate(t.estimateMin)}${t.kind === 'claude' && t.auto ? ' · auto' : ''})`,
       ]
       if (t.kind === 'claude') {
         lines.push(`  Brief: ${indent(t.brief)}`, `  Acceptance: ${indent(t.acceptance)}`)

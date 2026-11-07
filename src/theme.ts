@@ -117,6 +117,7 @@ export const STATUS_LABEL: Record<string, string> = {
   done: 'Done',
   queued: 'Queued',
   'in-progress': 'In progress',
+  review: 'Review',
   blocked: 'Blocked',
 }
 
@@ -131,6 +132,8 @@ export function statusPill(status: string, accent: AccentKey = 'home'): string {
       return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
     case 'in-progress':
       return 'bg-claude-500/10 text-claude-700 dark:text-claude-400'
+    case 'review':
+      return 'bg-violet-500/10 text-violet-700 dark:text-violet-400'
     case 'blocked':
       return 'bg-red-500/10 text-red-700 dark:text-red-400'
     default:
