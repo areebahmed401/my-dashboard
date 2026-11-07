@@ -13,12 +13,12 @@ interface ModalProps {
   onClose: () => void
   title: string
   description?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   children: ReactNode
   footer?: ReactNode
 }
 
-const WIDTH = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl' }
+const WIDTH = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
 // Content mounts only while open, so form state resets on every open
 export default function Modal({ open, onClose, title, description, size = 'md', children, footer }: ModalProps) {

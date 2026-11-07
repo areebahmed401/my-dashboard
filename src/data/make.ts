@@ -1,5 +1,5 @@
 import { DEFAULT_ESTIMATE_MIN, DEFAULT_PRIORITY } from './migrate'
-import type { BasicTask, ClaudeTask, Domain, Project } from './types'
+import type { BasicTask, ClaudeTask, Domain, Job, Project } from './types'
 
 export function now(): string {
   return new Date().toISOString()
@@ -26,6 +26,14 @@ export function newBasicTask(projectId: string, fields: BasicTaskFields): BasicT
 export function newClaudeTask(projectId: string, fields: ClaudeTaskFields): ClaudeTask {
   const t = now()
   return { ...defaults, ...fields, kind: 'claude', id: crypto.randomUUID(), projectId, createdAt: t, updatedAt: t }
+}
+
+export type JobFields = Pick<Job, 'company' | 'role' | 'posting'> &
+  Partial<Pick<Job, 'url' | 'location' | 'deadline' | 'notes'>>
+
+export function newJob(fields: JobFields): Job {
+  const t = now()
+  return { ...fields, id: crypto.randomUUID(), status: 'not-applied', createdAt: t, updatedAt: t }
 }
 
 // Copy with a fresh updatedAt; every edit sent as an upsert must go through this

@@ -38,3 +38,112 @@ body {
     transform: translateY(8px) scale(0.98);
   }
 }
+
+/* Markdown preview for CV / letter documents (no typography plugin) */
+.doc-prose {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  color: var(--color-neutral-800);
+}
+.doc-prose > :first-child {
+  margin-top: 0;
+}
+.doc-prose h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-neutral-900);
+}
+.doc-prose h2 {
+  margin: 1.25rem 0 0.5rem;
+  padding-bottom: 0.2rem;
+  border-bottom: 1px solid var(--color-neutral-200);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neutral-900);
+}
+.doc-prose h3 {
+  margin: 0.9rem 0 0.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+.doc-prose h3 + p > em:only-child {
+  color: var(--color-neutral-500);
+}
+.doc-prose p {
+  margin: 0 0 0.6rem;
+}
+.doc-prose ul,
+.doc-prose ol {
+  margin: 0.25rem 0 0.6rem;
+  padding-left: 1.25rem;
+}
+.doc-prose ul {
+  list-style: disc;
+}
+.doc-prose ol {
+  list-style: decimal;
+}
+.doc-prose li {
+  margin: 0.15rem 0;
+}
+.doc-prose hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid var(--color-neutral-200);
+}
+.doc-prose a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.doc-prose code {
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  background: var(--color-neutral-100);
+  font-size: 0.8125rem;
+}
+.doc-prose blockquote {
+  margin: 0.6rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--color-neutral-300);
+  color: var(--color-neutral-600);
+}
+.doc-prose table {
+  border-collapse: collapse;
+  margin: 0.6rem 0;
+}
+.doc-prose th,
+.doc-prose td {
+  border: 1px solid var(--color-neutral-200);
+  padding: 0.2rem 0.5rem;
+}
+
+.dark .doc-prose {
+  color: var(--color-neutral-300);
+}
+.dark .doc-prose h1,
+.dark .doc-prose h2,
+.dark .doc-prose h3 {
+  color: var(--color-neutral-100);
+}
+.dark .doc-prose h2,
+.dark .doc-prose hr,
+.dark .doc-prose th,
+.dark .doc-prose td {
+  border-color: var(--color-neutral-800);
+}
+.dark .doc-prose h3 + p > em:only-child {
+  color: var(--color-neutral-400);
+}
+.dark .doc-prose code {
+  background: var(--color-neutral-900);
+}
+.dark .doc-prose blockquote {
+  border-color: var(--color-neutral-700);
+  color: var(--color-neutral-400);
+}

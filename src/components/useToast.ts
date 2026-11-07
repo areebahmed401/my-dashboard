@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext } from 'react'
 import { touch } from '../data/make'
 import { useData } from '../data/store'
-import type { Project, Task } from '../data/types'
+import type { Job, Project, Task } from '../data/types'
 
 export interface ToastInput {
   message: string
@@ -50,5 +50,16 @@ export function useDeleteWithUndo() {
     [apply, toast],
   )
 
-  return { deleteTask, deleteProject }
+  const deleteJob = useCallback(
+    (job: Job) => {
+      apply({ type: 'deleteJob', id: job.id })
+      toast({
+        message: 'Job deleted',
+        action: { label: 'Undo', onClick: () => apply({ type: 'upsertJob', job: touch(job) }) },
+      })
+    },
+    [apply, toast],
+  )
+
+  return { deleteTask, deleteProject, deleteJob }
 }

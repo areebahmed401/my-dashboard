@@ -1,10 +1,13 @@
-import type { DashboardData, Project, Task } from './types'
+import type { DashboardData, Job, Profile, Project, Task } from './types'
 
 export type Op =
   | { type: 'upsertProject'; project: Project }
   | { type: 'deleteProject'; id: string }
   | { type: 'upsertTask'; task: Task }
   | { type: 'deleteTask'; id: string }
+  | { type: 'upsertJob'; job: Job }
+  | { type: 'deleteJob'; id: string }
+  | { type: 'setProfile'; profile: Profile }
 
 // Insert if missing; replace only when the incoming item is at least as new
 function upsert<T extends { id: string; updatedAt: string }>(list: T[], item: T): T[] {
@@ -28,6 +31,12 @@ export function applyOp(data: DashboardData, op: Op): DashboardData {
       return { ...data, tasks: upsert(data.tasks, op.task) }
     case 'deleteTask':
       return { ...data, tasks: data.tasks.filter((t) => t.id !== op.id) }
+    case 'upsertJob':
+      return { ...data, jobs: upsert(data.jobs, op.job) }
+    case 'deleteJob':
+      return { ...data, jobs: data.jobs.filter((j) => j.id !== op.id) }
+    case 'setProfile':
+      return op.profile.updatedAt < data.profile.updatedAt ? data : { ...data, profile: op.profile }
   }
 }
 
