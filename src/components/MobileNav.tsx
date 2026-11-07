@@ -26,7 +26,7 @@ export function MobileTabBar({ route }: { route: Route }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden dark:border-neutral-800/80 dark:bg-black/85"
     >
-      <div className="grid h-16 grid-cols-6">
+      <div className="grid h-16 grid-cols-5">
         {NAV_KEYS.map((key) => {
           const a = ACCENT[key]
           const Icon = a.icon
@@ -36,14 +36,14 @@ export function MobileTabBar({ route }: { route: Route }) {
               key={key}
               href={`#${key}`}
               aria-current={active ? 'page' : undefined}
-              className={`flex min-w-0 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors duration-150 outline-none focus-visible:bg-neutral-100 dark:focus-visible:bg-neutral-900 ${
-                active ? a.text : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-500 dark:hover:text-neutral-200'
+              className={`flex min-w-0 flex-col items-center justify-center gap-0.5 text-[11px] leading-tight font-medium transition-colors duration-150 outline-none focus-visible:bg-neutral-100 dark:focus-visible:bg-neutral-900 ${
+                active ? a.text : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200'
               }`}
             >
               <span className={`flex h-7 w-11 items-center justify-center rounded-full transition-colors duration-150 ${active ? a.softBg : ''}`}>
-                <Icon className="size-5" aria-hidden />
+                <Icon className="size-[22px]" aria-hidden />
               </span>
-              <span className="max-w-full truncate px-0.5">{key === 'job-search' ? 'Jobs' : a.label}</span>
+              <span className="max-w-full px-0.5 text-center">{a.label}</span>
             </a>
           )
         })}

@@ -48,7 +48,7 @@ function Row({
   return (
     <Fragment>
       <tr data-testid="task-table-row" className="transition-colors duration-150 hover:bg-neutral-50 dark:hover:bg-neutral-900/60">
-        <td className={`${CELL} text-sm break-words ${done ? 'text-neutral-400 line-through dark:text-neutral-500' : ''}`}>
+        <td className={`${CELL} text-sm break-words ${done ? 'text-neutral-500 line-through dark:text-neutral-400' : ''}`}>
           {task.title}
         </td>
         <td className={`${CELL} text-sm break-words ${MUTED_TEXT}`}>{projectName}</td>

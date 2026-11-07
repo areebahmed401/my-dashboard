@@ -23,7 +23,7 @@ export type AccentKey = 'home' | Domain | 'calendar'
 export type Route = AccentKey | 'settings'
 
 export const DOMAINS: Domain[] = ['study', 'job-search', 'german', 'claude']
-export const NAV_KEYS: AccentKey[] = ['home', ...DOMAINS, 'calendar']
+export const NAV_KEYS: AccentKey[] = ['home', ...DOMAINS]
 
 export const SURFACE =
   'rounded-xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800/80 dark:bg-neutral-950 dark:shadow-none'

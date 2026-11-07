@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Settings as SettingsIcon } from 'lucide-react'
-import CalendarView from './CalendarView'
 import DomainView from './DomainView'
 import Home from './Home'
 import Settings from './Settings'
@@ -19,6 +18,9 @@ function routeFromHash(): Route {
 }
 
 const isDomain = (r: Route): r is Domain => (DOMAINS as string[]).includes(r)
+
+// The calendar lives on Home; #calendar scrolls to its section
+const scrollToCalendar = () => setTimeout(() => document.getElementById('calendar')?.scrollIntoView(), 0)
 
 function DomainBody({ domain }: { domain: Domain }) {
   const { data, status, error } = useData()
@@ -71,8 +73,10 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       setRoute(routeFromHash())
-      window.scrollTo(0, 0)
+      if (window.location.hash === '#calendar') scrollToCalendar()
+      else window.scrollTo(0, 0)
     }
+    if (window.location.hash === '#calendar') scrollToCalendar()
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -114,9 +118,7 @@ export default function App() {
           ) : (
             <>
               <PageHeader route={route} />
-              {route === 'calendar' ? (
-                <CalendarView />
-              ) : route === 'settings' ? (
+              {route === 'settings' ? (
                 <Settings />
               ) : isDomain(route) ? (
                 <DomainBody key={route} domain={route} />
