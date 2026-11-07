@@ -35,12 +35,10 @@ function Card({ domain, task, projectName }: { domain: Domain; task: Task; proje
         e.dataTransfer.setData('text/plain', task.id)
         e.dataTransfer.effectAllowed = 'move'
       }}
-      className={`cursor-grab space-y-2 rounded-xl border border-neutral-200 bg-white p-3 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md active:cursor-grabbing dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none dark:hover:border-neutral-700 ${
-        done ? 'opacity-60' : ''
-      }`}
+      className="cursor-grab space-y-2 rounded-xl border border-neutral-200 bg-white p-3 shadow-sm transition duration-150 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-md active:cursor-grabbing dark:border-neutral-800 dark:bg-neutral-900 dark:shadow-none dark:hover:border-neutral-700"
     >
       <div
-        className={`text-sm font-medium break-words ${done ? 'text-neutral-400 line-through dark:text-neutral-500' : ''}`}
+        className={`text-sm font-medium break-words ${done ? 'text-neutral-500 line-through dark:text-neutral-400' : ''}`}
       >
         {task.title}
       </div>

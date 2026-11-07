@@ -131,7 +131,7 @@ function GoogleSettings() {
           sessionStorage only.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" accent="calendar">
+          <Button type="submit" variant="primary">
             Save
           </Button>
           {status !== 'connected' && (

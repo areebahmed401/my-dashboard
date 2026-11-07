@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   AlarmClock,
   ArrowRight,
-  CalendarCheck,
   CalendarDays,
   CalendarRange,
   Check,
@@ -12,6 +11,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import CalendarView from './CalendarView'
 import Card from './components/Card'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
@@ -24,12 +24,7 @@ import { useToast } from './components/useToast'
 import { touch } from './data/make'
 import { useData } from './data/store'
 import type { DashboardData, Domain, Project, Task } from './data/types'
-import { daysUntil, localYmd } from './due'
-import { GoogleAuthError, listCalendars, listEvents } from './gcal/api'
-import type { GCalendar, GEvent } from './gcal/api'
-import { useGcalStatus } from './gcal/auth'
-import { getHiddenCalendars } from './gcal/config'
-import { isTasksCalendar } from './gcal/taskSync'
+import { daysUntil } from './due'
 import { ACCENT, DOMAINS, FOCUS_RING, MUTED_TEXT, SURFACE } from './theme'
 
 type Filter = 'overdue' | 'today' | 'week' | 'claude'
@@ -79,7 +74,13 @@ export default function Home() {
         <LoadingBlock label={status === 'offline' ? 'Offline.' : 'Loading your tasks…'} />
       )}
 
-      <WeekPanel />
+      <section id="calendar" aria-labelledby="calendar-title" className="scroll-mt-20">
+        <h2 id="calendar-title" className={`flex items-center gap-2 ${SECTION_TITLE}`}>
+          <CalendarDays className={`size-4 ${ACCENT.calendar.text}`} aria-hidden />
+          Calendar
+        </h2>
+        <CalendarView />
+      </section>
 
       {data && <DomainGrid data={data} />}
     </div>
@@ -334,175 +335,5 @@ function DomainGrid({ data }: { data: DashboardData }) {
         })}
       </div>
     </section>
-  )
-}
-
-// ---- Calendar panel ----
-
-interface WeekEvent {
-  id: string
-  title: string
-  day: string // YYYY-MM-DD local
-  time: string // '' for all-day
-  sort: string
-  color: string
-}
-
-const pad = (n: number) => String(n).padStart(2, '0')
-
-function rfc3339(d: Date): string {
-  const off = -d.getTimezoneOffset()
-  const sign = off >= 0 ? '+' : '-'
-  return `${localYmd(d)}T00:00:00${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`
-}
-
-function toWeekEvent(e: GEvent, c: GCalendar): WeekEvent | null {
-  if (e.start.dateTime) {
-    const d = new Date(e.start.dateTime)
-    return {
-      id: `${c.id}|${e.id}`,
-      title: e.summary || '(No title)',
-      day: localYmd(d),
-      time: d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-      sort: d.toISOString(),
-      color: c.backgroundColor,
-    }
-  }
-  if (e.start.date) {
-    return { id: `${c.id}|${e.id}`, title: e.summary || '(No title)', day: e.start.date, time: '', sort: '', color: c.backgroundColor }
-  }
-  return null
-}
-
-function dayLabel(ymd: string): string {
-  const n = daysUntil(ymd)
-  if (n === 0) return 'Today'
-  if (n === 1) return 'Tomorrow'
-  const [y, m, d] = ymd.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
-}
-
-function WeekPanel() {
-  const status = useGcalStatus()
-  return (
-    <section aria-labelledby="week-title">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 id="week-title" className={SECTION_TITLE}>
-          This week
-        </h2>
-        <a
-          href="#calendar"
-          className={`inline-flex items-center gap-1 rounded text-xs font-medium ${ACCENT.calendar.text} hover:underline ${FOCUS_RING} ${ACCENT.calendar.ring}`}
-        >
-          Calendar
-          <ArrowRight className="size-3.5" aria-hidden />
-        </a>
-      </div>
-      {status === 'connected' ? <WeekEvents /> : <ConnectCalendarCard reconnect={status === 'expired'} />}
-    </section>
-  )
-}
-
-function ConnectCalendarCard({ reconnect }: { reconnect: boolean }) {
-  return (
-    <Card href="#calendar" className="flex items-center gap-3">
-      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${ACCENT.calendar.softBg} ${ACCENT.calendar.text}`}>
-        <CalendarDays className="size-[18px]" aria-hidden />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{reconnect ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}</span>
-        <span className={`block text-xs ${MUTED_TEXT}`}>See this week's events next to your tasks.</span>
-      </span>
-      <ArrowRight className="size-4 text-neutral-400 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
-    </Card>
-  )
-}
-
-const MAX_EVENTS = 12
-
-function WeekEvents() {
-  const [state, setState] = useState<{ events: WeekEvent[] | null; error: boolean }>({ events: null, error: false })
-
-  useEffect(() => {
-    let live = true
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-    const end = new Date(start)
-    end.setDate(end.getDate() + 7)
-    const hidden = getHiddenCalendars()
-    listCalendars()
-      .then((cals) => {
-        const visible = cals.filter((c) => !isTasksCalendar(c) && !hidden.includes(c.id))
-        return Promise.all(
-          visible.map((c) =>
-            listEvents(c.id, rfc3339(start), rfc3339(end)).then((evs) =>
-              evs.map((e) => toWeekEvent(e, c)).filter((e): e is WeekEvent => e !== null),
-            ),
-          ),
-        )
-      })
-      .then((lists) => {
-        if (!live) return
-        const today = localYmd(start)
-        const events = lists
-          .flat()
-          .filter((e) => e.day >= today)
-          .sort((a, b) => (a.day !== b.day ? (a.day < b.day ? -1 : 1) : a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0))
-        setState({ events, error: false })
-      })
-      .catch((e: unknown) => {
-        // auth errors flip the gcal status, which swaps this panel for the connect card
-        if (live && !(e instanceof GoogleAuthError)) setState({ events: [], error: true })
-      })
-    return () => {
-      live = false
-    }
-  }, [])
-
-  const { events, error } = state
-  if (!events) {
-    return (
-      <div className={`${SURFACE} space-y-3 p-4`} aria-busy="true" aria-label="Loading events">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-4 w-2/3 animate-pulse rounded bg-neutral-100 dark:bg-neutral-900" />
-        ))}
-      </div>
-    )
-  }
-  if (error) {
-    return <p className={`text-sm ${MUTED_TEXT}`}>Couldn't load events right now. Open the Calendar tab to retry.</p>
-  }
-  if (events.length === 0) {
-    return <EmptyState icon={CalendarCheck} title="No events in the next 7 days" />
-  }
-
-  const shown = events.slice(0, MAX_EVENTS)
-  const days = [...new Set(shown.map((e) => e.day))]
-  return (
-    <div className={`${SURFACE} divide-y divide-neutral-100 dark:divide-neutral-800/80`}>
-      {days.map((day) => (
-        <div key={day} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-4">
-          <div className={`w-36 shrink-0 pt-0.5 text-xs font-medium ${daysUntil(day) === 0 ? ACCENT.calendar.text : MUTED_TEXT}`}>
-            {dayLabel(day)}
-          </div>
-          <ul className="min-w-0 flex-1 space-y-1.5">
-            {shown
-              .filter((e) => e.day === day)
-              .map((e) => (
-                <li key={e.id} className="flex items-center gap-2.5 text-sm">
-                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} aria-hidden />
-                  <span className={`w-12 shrink-0 text-xs tabular-nums ${MUTED_TEXT}`}>{e.time || 'All day'}</span>
-                  <span className="min-w-0 flex-1 truncate">{e.title}</span>
-                </li>
-              ))}
-          </ul>
-        </div>
-      ))}
-      {events.length > MAX_EVENTS && (
-        <a href="#calendar" className={`block px-4 py-2.5 text-xs font-medium ${MUTED_TEXT} hover:text-neutral-900 dark:hover:text-neutral-100`}>
-          +{events.length - MAX_EVENTS} more in Calendar
-        </a>
-      )}
-    </div>
   )
 }

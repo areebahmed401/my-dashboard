@@ -91,7 +91,7 @@ function TaskRow({ domain, task }: { domain: Domain; task: Task }) {
       />
       <div className="min-w-0 flex-1 basis-32">
         <span
-          className={`text-sm break-words ${done ? 'text-neutral-400 line-through dark:text-neutral-500' : ''}`}
+          className={`text-sm break-words ${done ? 'text-neutral-500 line-through dark:text-neutral-400' : ''}`}
         >
           {task.title}
         </span>
