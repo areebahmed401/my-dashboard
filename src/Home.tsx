@@ -25,7 +25,9 @@ import { touch } from './data/make'
 import { useData } from './data/store'
 import type { DashboardData, Domain, Project, Task } from './data/types'
 import { daysUntil } from './due'
+import PlanSection from './plan/PlanSection'
 import { ACCENT, DOMAINS, FOCUS_RING, MUTED_TEXT, SURFACE } from './theme'
+import { TOOLS } from './tools'
 
 type Filter = 'overdue' | 'today' | 'week' | 'claude'
 const FILTER_LABEL: Record<Filter, string> = {
@@ -83,6 +85,8 @@ export default function Home() {
       </section>
 
       {data && <DomainGrid data={data} />}
+
+      <ToolsRow />
     </div>
   )
 }
@@ -171,6 +175,8 @@ function TaskSections({ data }: { data: DashboardData }) {
   const overdue = count('overdue')
   return (
     <>
+      <PlanSection data={data} />
+
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Overdue"
@@ -250,6 +256,32 @@ function FocusRow({ row, onDone }: { row: Row; onDone: () => void }) {
         <DueBadge due={task.due} accent={project.domain} />
       </a>
     </li>
+  )
+}
+
+// The sidebar's tool links, for phones where the sidebar is hidden
+function ToolsRow() {
+  return (
+    <section aria-labelledby="tools-title">
+      <h2 id="tools-title" className={`mb-3 ${SECTION_TITLE}`}>
+        Tools
+      </h2>
+      <ul className="flex flex-wrap gap-2">
+        {TOOLS.map((t) => (
+          <li key={t.href}>
+            <a
+              href={t.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${SURFACE} inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors duration-150 hover:border-neutral-300 dark:hover:border-neutral-700 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
+            >
+              <img src={t.logo} alt="" className="size-5 shrink-0 rounded" />
+              {t.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

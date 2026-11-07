@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { CalendarDays, Database, Monitor, Moon, Palette, Sun } from 'lucide-react'
+import { CalendarDays, Clock, Database, Monitor, Moon, Palette, Sun } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Button from './components/Button'
 import Segmented from './components/Segmented'
@@ -10,6 +10,7 @@ import { fetchData } from './data/github'
 import { useData } from './data/store'
 import { connect, disconnect, loadGis, useGcalStatus } from './gcal/auth'
 import { DEFAULT_CLIENT_ID, getClientIdOverride, setClientIdOverride } from './gcal/config'
+import WorkHoursEditor from './plan/WorkHoursEditor'
 import { ACCENT, MUTED_TEXT, SURFACE, useTheme } from './theme'
 import type { AccentKey, ThemePref } from './theme'
 import { INPUT } from './ui'
@@ -147,6 +148,21 @@ function GoogleSettings() {
   )
 }
 
+function WorkingHours() {
+  const [open, setOpen] = useState(false)
+  return (
+    <Section
+      icon={Clock}
+      accent="home"
+      title="Working hours"
+      description="The Home planner only schedules tasks inside these hours."
+    >
+      <Button onClick={() => setOpen(true)}>Edit working hours</Button>
+      <WorkHoursEditor open={open} onClose={() => setOpen(false)} />
+    </Section>
+  )
+}
+
 function Appearance() {
   const [pref, setPref] = useTheme()
   return (
@@ -237,6 +253,7 @@ export default function Settings() {
         </form>
       </Section>
       <GoogleSettings />
+      <WorkingHours />
       <Appearance />
     </div>
   )
