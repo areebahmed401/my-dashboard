@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import DomainView from './DomainView'
 import Settings from './Settings'
 import { useData } from './data/store'
 import type { SyncStatus } from './data/store'
@@ -66,14 +67,10 @@ function DomainBody({ domain }: { domain: Domain }) {
     if (status === 'error') return <p className="mt-2 text-red-700 dark:text-red-400">{error}</p>
     return <p className={muted}>{status === 'offline' ? 'Offline.' : 'Loading…'}</p>
   }
-  const ids = new Set(data.projects.filter((p) => p.domain === domain).map((p) => p.id))
-  const tasks = data.tasks.filter((t) => ids.has(t.projectId)).length
   return (
     <>
       {status === 'error' && <p className="mt-2 text-red-700 dark:text-red-400">{error}</p>}
-      <p className={muted}>
-        {ids.size} projects, {tasks} tasks
-      </p>
+      <DomainView domain={domain} />
     </>
   )
 }
