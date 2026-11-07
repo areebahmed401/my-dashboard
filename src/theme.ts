@@ -15,14 +15,14 @@
  * focus-visible rings in the accent (`FOCUS_RING` + ACCENT[key].ring).
  */
 import { useSyncExternalStore } from 'react'
-import { Briefcase, CalendarDays, GraduationCap, House, Languages, Sparkles } from 'lucide-react'
+import { Briefcase, CalendarDays, GraduationCap, House, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import type { Domain } from './data/types'
+import type { Domain, Priority } from './data/types'
 
 export type AccentKey = 'home' | Domain | 'calendar'
 export type Route = AccentKey | 'settings'
 
-export const DOMAINS: Domain[] = ['study', 'job-search', 'german', 'claude']
+export const DOMAINS: Domain[] = ['study', 'job-search', 'claude']
 export const NAV_KEYS: AccentKey[] = ['home', ...DOMAINS]
 
 export const SURFACE =
@@ -85,18 +85,6 @@ export const ACCENT: Record<AccentKey, Accent> = {
     bar: 'bg-emerald-500',
     gradient: 'bg-linear-to-br from-emerald-500/15 to-transparent',
   },
-  german: {
-    label: 'German',
-    icon: Languages,
-    text: 'text-yellow-600 dark:text-yellow-400',
-    softBg: 'bg-yellow-500/10 dark:bg-yellow-400/10',
-    softBorder: 'border-yellow-500/25 dark:border-yellow-400/20',
-    dot: 'bg-yellow-500',
-    solid: 'bg-yellow-400 text-neutral-950 hover:bg-yellow-300',
-    ring: 'focus-visible:ring-yellow-500/50',
-    bar: 'bg-yellow-500',
-    gradient: 'bg-linear-to-br from-yellow-500/15 to-transparent',
-  },
   claude: {
     label: 'Claude',
     icon: Sparkles,
@@ -145,6 +133,18 @@ export function statusPill(status: string, accent: AccentKey = 'home'): string {
       return 'bg-claude-500/10 text-claude-700 dark:text-claude-400'
     case 'blocked':
       return 'bg-red-500/10 text-red-700 dark:text-red-400'
+    default:
+      return PILL_NEUTRAL
+  }
+}
+
+// Classes for a priority pill: P1 red, P2 amber, P3/P4 neutral
+export function priorityPill(p: Priority): string {
+  switch (p) {
+    case 1:
+      return 'bg-red-500/10 text-red-700 dark:text-red-400'
+    case 2:
+      return 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
     default:
       return PILL_NEUTRAL
   }

@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Button from './components/Button'
+import { DEFAULT_ESTIMATE_MIN, DEFAULT_PRIORITY } from './data/migrate'
 import { newBasicTask, newClaudeTask, touch } from './data/make'
 import { useData } from './data/store'
-import type { BasicTask, ClaudeTask, Domain, Task } from './data/types'
+import type { BasicTask, ClaudeTask, Domain, Priority, Task } from './data/types'
 import { MUTED_TEXT, STATUS_LABEL } from './theme'
-import { BASIC_STATUSES, CLAUDE_STATUSES, INPUT } from './ui'
+import { BASIC_STATUSES, CLAUDE_STATUSES, ESTIMATE_OPTIONS, INPUT, PRIORITIES, PRIORITY_LABEL, formatEstimate } from './ui'
 
 const LABEL = `block text-xs font-medium ${MUTED_TEXT}`
 const FIELD = `${INPUT} mt-1.5 block w-full`
@@ -25,6 +26,8 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
   const [title, setTitle] = useState(task?.title ?? '')
   const [status, setStatus] = useState<string>(task?.status ?? (isClaude ? 'queued' : 'todo'))
   const [due, setDue] = useState(task?.due ?? '')
+  const [priority, setPriority] = useState<Priority>(task?.priority ?? DEFAULT_PRIORITY)
+  const [estimateMin, setEstimateMin] = useState(task?.estimateMin ?? DEFAULT_ESTIMATE_MIN)
   const [notes, setNotes] = useState(task?.notes ?? '')
   const [repo, setRepo] = useState(claude?.repo ?? '')
   const [brief, setBrief] = useState(claude?.brief ?? '')
@@ -38,6 +41,8 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
     const common = {
       title: title.trim(),
       due: due || undefined,
+      priority,
+      estimateMin,
       notes: notes.trim() === '' ? undefined : notes,
     }
     if (isClaude) {
@@ -108,6 +113,30 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
         <label className={LABEL}>
           Due
           <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={FIELD} />
+        </label>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className={LABEL}>
+          Priority
+          <select value={priority} onChange={(e) => setPriority(Number(e.target.value) as Priority)} className={FIELD}>
+            {PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={LABEL}>
+          Estimate
+          <select value={estimateMin} onChange={(e) => setEstimateMin(Number(e.target.value))} className={FIELD}>
+            {(ESTIMATE_OPTIONS.includes(estimateMin) ? ESTIMATE_OPTIONS : [...ESTIMATE_OPTIONS, estimateMin].sort((a, b) => a - b)).map(
+              (m) => (
+                <option key={m} value={m}>
+                  {formatEstimate(m)}
+                </option>
+              ),
+            )}
+          </select>
         </label>
       </div>
       <label className={LABEL}>

@@ -26,7 +26,7 @@ export function MobileTabBar({ route }: { route: Route }) {
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden dark:border-neutral-800/80 dark:bg-black/85"
     >
-      <div className="grid h-16 grid-cols-5">
+      <div className="grid h-16 grid-cols-4">
         {NAV_KEYS.map((key) => {
           const a = ACCENT[key]
           const Icon = a.icon

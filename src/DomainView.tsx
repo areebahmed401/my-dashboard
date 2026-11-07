@@ -8,7 +8,9 @@ import Button from './components/Button'
 import Card from './components/Card'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
+import EstimateBadge from './components/EstimateBadge'
 import IconButton from './components/IconButton'
+import PriorityPill from './components/PriorityPill'
 import ProgressBar from './components/ProgressBar'
 import Segmented from './components/Segmented'
 import StatusSelect from './components/StatusSelect'
@@ -97,6 +99,8 @@ function TaskRow({ domain, task }: { domain: Domain; task: Task }) {
           <span className="ml-2 font-mono text-xs text-neutral-400 dark:text-neutral-500">{task.repo}</span>
         )}
       </div>
+      <PriorityPill priority={task.priority} />
+      <EstimateBadge minutes={task.estimateMin} />
       <DueBadge due={task.due} done={done} accent={domain} />
       <div className="flex shrink-0">
         <IconButton icon={Pencil} label={`Edit ${task.title}`} size="sm" accent={domain} onClick={() => setEditing(true)} />

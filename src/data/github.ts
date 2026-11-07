@@ -1,4 +1,5 @@
 import type { GithubConfig } from './config'
+import { migrate } from './migrate'
 import { emptyData } from './types'
 import type { DashboardData } from './types'
 
@@ -70,8 +71,8 @@ function readMock(): { data: DashboardData; sha: string } {
   try {
     const raw = localStorage.getItem(MOCK_KEY)
     if (raw) {
-      const p = JSON.parse(raw) as { data?: DashboardData; sha?: unknown }
-      if (p.data && typeof p.sha === 'string') return { data: p.data, sha: p.sha }
+      const p = JSON.parse(raw) as { data?: unknown; sha?: unknown }
+      if (p.data && typeof p.sha === 'string') return { data: migrate(p.data), sha: p.sha }
     }
   } catch {
     // storage unavailable or corrupt: start empty
@@ -104,11 +105,7 @@ export async function fetchData(cfg: GithubConfig): Promise<{ data: DashboardDat
   if (typeof json.content !== 'string' || typeof json.sha !== 'string') {
     throw new Error('Unexpected response from GitHub')
   }
-  const data = JSON.parse(decodeBase64(json.content)) as Partial<DashboardData>
-  if (data.version !== 1 || !Array.isArray(data.projects) || !Array.isArray(data.tasks)) {
-    throw new Error('data.json has an unexpected format')
-  }
-  return { data: data as DashboardData, sha: json.sha }
+  return { data: migrate(JSON.parse(decodeBase64(json.content))), sha: json.sha }
 }
 
 export async function saveData(

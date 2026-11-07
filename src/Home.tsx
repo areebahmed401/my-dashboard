@@ -15,6 +15,8 @@ import CalendarView from './CalendarView'
 import Card from './components/Card'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
+import EstimateBadge from './components/EstimateBadge'
+import PriorityPill from './components/PriorityPill'
 import ProgressBar from './components/ProgressBar'
 import StatCard from './components/StatCard'
 import { buttonClass } from './components/classes'
@@ -144,6 +146,7 @@ function TaskSections({ data }: { data: DashboardData }) {
   const focus = rows
     .filter(filter ? match[filter] : (r) => match.overdue(r) || inWeek(r))
     .sort((a, b) => {
+      if (a.task.priority !== b.task.priority) return a.task.priority - b.task.priority
       if (a.task.due !== b.task.due) {
         if (!a.task.due) return 1
         if (!b.task.due) return -1
@@ -177,7 +180,7 @@ function TaskSections({ data }: { data: DashboardData }) {
           active={filter === 'overdue'}
           onClick={() => pick('overdue')}
         />
-        <StatCard label="Due today" value={count('today')} icon={AlarmClock} tone="german" active={filter === 'today'} onClick={() => pick('today')} />
+        <StatCard label="Due today" value={count('today')} icon={AlarmClock} tone="job-search" active={filter === 'today'} onClick={() => pick('today')} />
         <StatCard label="Due this week" value={count('week')} icon={CalendarRange} tone="study" active={filter === 'week'} onClick={() => pick('week')} />
         <StatCard label="Claude queue" value={count('claude')} icon={Sparkles} tone="claude" active={filter === 'claude'} onClick={() => pick('claude')} />
       </section>
@@ -242,6 +245,8 @@ function FocusRow({ row, onDone }: { row: Row; onDone: () => void }) {
             {a.label} · {project.name}
           </span>
         </span>
+        <PriorityPill priority={task.priority} />
+        <EstimateBadge minutes={task.estimateMin} />
         <DueBadge due={task.due} accent={project.domain} />
       </a>
     </li>

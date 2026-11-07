@@ -1,8 +1,9 @@
-import { Plus, Settings as SettingsIcon } from 'lucide-react'
+import { ExternalLink, Plus, Settings as SettingsIcon } from 'lucide-react'
 import IconButton from './IconButton'
 import SyncStatus from './SyncStatus'
 import ThemeToggle from './ThemeToggle'
 import { ACCENT, FOCUS_RING, NAV_KEYS } from '../theme'
+import { TOOLS } from '../tools'
 import type { AccentKey, Route } from '../theme'
 
 export function LogoMark({ className = '' }: { className?: string }) {
@@ -79,7 +80,27 @@ export default function Sidebar({ route, counts, onQuickAdd }: SidebarProps) {
         </button>
       </div>
 
-      <div className="mt-auto flex items-center gap-1 border-t border-neutral-200 px-3 py-3 dark:border-neutral-800/80">
+      <div className="mt-auto px-3 pb-3">
+        <h2 className="px-2.5 pb-1.5 text-xs font-medium tracking-wide text-neutral-400 uppercase dark:text-neutral-500">Tools</h2>
+        <ul className="flex flex-col gap-0.5">
+          {TOOLS.map((t) => (
+            <li key={t.href}>
+              <a
+                href={t.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex h-9 items-center gap-3 rounded-lg px-2.5 text-sm font-medium text-neutral-600 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-900 dark:hover:text-neutral-100 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
+              >
+                <img src={t.logo} alt="" width={20} height={20} className="size-5 shrink-0 rounded" />
+                <span className="flex-1 truncate">{t.label}</span>
+                <ExternalLink className="size-3.5 shrink-0 text-neutral-400 dark:text-neutral-500" aria-hidden />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex items-center gap-1 border-t border-neutral-200 px-3 py-3 dark:border-neutral-800/80">
         <SyncStatus className="ml-2.5 flex-1" />
         <ThemeToggle size="sm" />
         <IconButton icon={SettingsIcon} label="Settings" size="sm" href="#settings" active={route === 'settings'} />

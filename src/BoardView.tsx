@@ -5,8 +5,10 @@ import AddTask from './AddTask'
 import TaskEditor from './TaskEditor'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
+import EstimateBadge from './components/EstimateBadge'
 import IconButton from './components/IconButton'
 import Pill from './components/Pill'
+import PriorityPill from './components/PriorityPill'
 import StatusSelect from './components/StatusSelect'
 import { touch } from './data/make'
 import { useData } from './data/store'
@@ -46,6 +48,8 @@ function Card({ domain, task, projectName }: { domain: Domain; task: Task; proje
             <span className="truncate">{projectName}</span>
           </Pill>
         )}
+        <PriorityPill priority={task.priority} />
+        <EstimateBadge minutes={task.estimateMin} />
         <DueBadge due={task.due} done={done} accent={domain} />
       </div>
       {task.kind === 'claude' && task.repo && (
