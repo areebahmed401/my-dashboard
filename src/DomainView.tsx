@@ -1,31 +1,36 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import BoardView from './BoardView'
+import TableView from './TableView'
 import TaskEditor from './TaskEditor'
 import { newProject, touch } from './data/make'
 import { useData } from './data/store'
-import type { BasicTask, ClaudeTask, Domain, Project, Task } from './data/types'
+import type { Domain, Project, Task } from './data/types'
+import { BASIC_STATUSES, BUTTON, CLAUDE_STATUSES, INPUT, MUTED, PRIMARY, compareTasks } from './ui'
 
-const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
-const PRIMARY =
-  'rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
-const INPUT =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900'
-const MUTED = 'text-sm text-slate-500 dark:text-slate-400'
+type View = 'projects' | 'board' | 'table'
+const VIEWS: { id: View; label: string }[] = [
+  { id: 'projects', label: 'Projects' },
+  { id: 'board', label: 'Board' },
+  { id: 'table', label: 'Table' },
+]
 
-const BASIC_STATUSES: BasicTask['status'][] = ['todo', 'doing', 'done']
-const CLAUDE_STATUSES: ClaudeTask['status'][] = ['queued', 'in-progress', 'done', 'blocked']
-
-// Open tasks first, then by due date (none last), then creation time
-function compareTasks(a: Task, b: Task): number {
-  const open = Number(a.status === 'done') - Number(b.status === 'done')
-  if (open !== 0) return open
-  if (a.due !== b.due) {
-    if (!a.due) return 1
-    if (!b.due) return -1
-    return a.due < b.due ? -1 : 1
+function readView(domain: Domain): View {
+  try {
+    const v = localStorage.getItem(`my-dashboard.view.${domain}`)
+    if (v === 'projects' || v === 'board' || v === 'table') return v
+  } catch {
+    // storage unavailable
   }
-  return a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0
+  return 'projects'
+}
+
+function writeView(domain: Domain, view: View) {
+  try {
+    localStorage.setItem(`my-dashboard.view.${domain}`, view)
+  } catch {
+    // storage unavailable
+  }
 }
 
 function TaskRow({ domain, task }: { domain: Domain; task: Task }) {
@@ -179,12 +184,22 @@ function ProjectCard({ project, tasks }: { project: Project; tasks: Task[] }) {
 export default function DomainView({ domain }: { domain: Domain }) {
   const { data, apply } = useData()
   const [newName, setNewName] = useState('')
+  const [chosen, setChosen] = useState<Partial<Record<Domain, View>>>({})
 
   if (!data) return null
+
+  const view = chosen[domain] ?? readView(domain)
+  const setView = (v: View) => {
+    writeView(domain, v)
+    setChosen((c) => ({ ...c, [domain]: v }))
+  }
 
   const projects = data.projects
     .filter((p) => p.domain === domain)
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+
+  const projectIds = new Set(projects.map((p) => p.id))
+  const domainTasks = data.tasks.filter((t) => projectIds.has(t.projectId))
 
   const onAdd = (e: FormEvent) => {
     e.preventDefault()
@@ -210,7 +225,34 @@ export default function DomainView({ domain }: { domain: Domain }) {
         </button>
       </form>
 
-      {projects.length === 0 ? (
+      <div
+        data-testid="view-switch"
+        role="group"
+        aria-label="View"
+        className="inline-flex gap-1 rounded-md border border-slate-300 p-1 dark:border-slate-700"
+      >
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={view === v.id}
+            onClick={() => setView(v.id)}
+            className={`rounded px-3 py-1 text-sm ${
+              view === v.id
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'board' ? (
+        <BoardView domain={domain} projects={projects} tasks={domainTasks} />
+      ) : view === 'table' ? (
+        <TableView domain={domain} projects={projects} tasks={domainTasks} />
+      ) : projects.length === 0 ? (
         <p className={MUTED}>No projects yet.</p>
       ) : (
         projects.map((p) => (
