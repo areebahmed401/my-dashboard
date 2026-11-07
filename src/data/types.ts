@@ -45,12 +45,48 @@ export interface ClaudeTask {
 
 export type Task = BasicTask | ClaudeTask
 
+export type JobStatus = 'not-applied' | 'applied'
+
+export interface Job {
+  id: string
+  company: string
+  role: string
+  url?: string
+  location?: string
+  deadline?: string // YYYY-MM-DD
+  posting: string // pasted job ad text
+  status: JobStatus
+  appliedOn?: string // YYYY-MM-DD
+  cvMd?: string // tailored documents (markdown)
+  letterMd?: string
+  tailor?: 'requested' | 'done'
+  tailorTaskId?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Base documents the tailored copies start from
+export interface Profile {
+  cvMd: string
+  letterMd: string
+  updatedAt: string
+}
+
+export const EMPTY_PROFILE_AT = '1970-01-01T00:00:00.000Z'
+
+export function emptyProfile(): Profile {
+  return { cvMd: '', letterMd: '', updatedAt: EMPTY_PROFILE_AT }
+}
+
 export interface DashboardData {
   version: 2
   projects: Project[]
   tasks: Task[]
+  jobs: Job[]
+  profile: Profile
 }
 
 export function emptyData(): DashboardData {
-  return { version: 2, projects: [], tasks: [] }
+  return { version: 2, projects: [], tasks: [], jobs: [], profile: emptyProfile() }
 }

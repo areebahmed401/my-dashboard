@@ -3,6 +3,7 @@ import { Settings as SettingsIcon } from 'lucide-react'
 import DomainView from './DomainView'
 import Home from './Home'
 import Settings from './Settings'
+import JobsView from './jobs/JobsView'
 import { MobileTabBar, MobileTopBar } from './components/MobileNav'
 import QuickAdd from './components/QuickAdd'
 import Sidebar from './components/Sidebar'
@@ -12,7 +13,7 @@ import { ACCENT, DOMAINS, NAV_KEYS } from './theme'
 import type { AccentKey, Route } from './theme'
 
 function routeFromHash(): Route {
-  const id = window.location.hash.slice(1)
+  const id = window.location.hash.slice(1).split('/')[0] // #job-search/docs -> job-search
   if (id === 'settings') return 'settings'
   return NAV_KEYS.find((k) => k === id) ?? 'home'
 }
@@ -41,7 +42,7 @@ function DomainBody({ domain }: { domain: Domain }) {
   return (
     <>
       {status === 'error' && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
-      <DomainView domain={domain} />
+      {domain === 'job-search' ? <JobsView /> : <DomainView domain={domain} />}
     </>
   )
 }
