@@ -1,6 +1,6 @@
 // Assertions for the planner. Run: npx tsx src/plan/plan.check.ts (exits non-zero on the first failure)
 import { defaultSettings } from '../data/types.ts'
-import type { BasicTask, Priority } from '../data/types.ts'
+import type { BasicTask, ClaudeTask, Priority } from '../data/types.ts'
 import { atTime, effectivePriority, freeGaps, orderTasks, planDays } from './plan.ts'
 import type { Busy } from './plan.ts'
 
@@ -152,6 +152,35 @@ check('boosted P3 ties with P2 and loses on no due only', orderTasks([task('p2-n
 {
   const plan = planDays([MON], settings, {}, [task('late', 1, 30)], MON, new Date(2026, 10, 9, 13, 2))
   check('today starts at the next quarter', plan.days[0].slots.map(range), ['13:15-13:45'])
+}
+
+// Claude tasks: review -> 15 min "Review" slot; auto queued/in-progress -> Claude's own work, not planned
+{
+  const claude = (title: string, status: ClaudeTask['status'], auto: boolean | undefined, estimateMin = 60): ClaudeTask => ({
+    ...task(title, 2, estimateMin),
+    kind: 'claude',
+    status,
+    auto,
+    repo: 'r',
+    brief: '',
+    acceptance: '',
+  })
+  const rev = claude('rev', 'review', true, 120)
+  const autoQ = claude('auto-q', 'queued', true)
+  const autoP = claude('auto-p', 'in-progress', true)
+  const manualQ = claude('manual-q', 'queued', undefined)
+  const manualP = claude('manual-p', 'in-progress', false)
+  const blocked = claude('blocked', 'blocked', false)
+  const all = [rev, autoQ, autoP, manualQ, manualP, blocked]
+  check('orderTasks drops auto queued/in-progress and blocked', orderTasks(all, MON).map((t) => t.title), ['rev', 'manual-q', 'manual-p'])
+  const plan = planDays([MON], settings, {}, all, MON, longAgo)
+  check('review is a 15 min slot flagged review', plan.days[0].slots.filter((s) => s.review).map((s) => `${s.task.title} ${range(s)}`), ['rev 09:00-09:15'])
+  check('manual claude tasks keep their estimate', plan.days[0].slots.filter((s) => !s.review).map((s) => `${s.task.title} ${range(s)}`), ['manual-q 09:15-10:15', 'manual-p 10:15-11:15'])
+  check('nothing unscheduled', plan.unscheduled.length, 0)
+  const notAuto = planDays([MON], settings, {}, [{ ...rev, auto: false }], MON, longAgo)
+  check('review slot does not need auto', notAuto.days[0].slots.map((s) => [s.review, range(s)]), [[true, '09:00-09:15']])
+  const planned = planDays([MON], settings, {}, [autoQ, rev], MON, longAgo)
+  check('auto task alongside review is not planned', titles(planned.days[0].slots), ['rev'])
 }
 
 console.log(`plan.check: ${passed} assertions passed`)

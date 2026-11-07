@@ -35,7 +35,8 @@ export interface ClaudeTask {
   id: string
   projectId: string
   title: string
-  status: 'queued' | 'in-progress' | 'done' | 'blocked'
+  status: 'queued' | 'in-progress' | 'review' | 'done' | 'blocked' // review: Claude finished, waiting for me
+  auto?: boolean // Claude may run this unattended
   repo: string
   brief: string
   acceptance: string

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Circle, CircleCheck } from 'lucide-react'
 import TaskEditor from '../TaskEditor'
 import DueBadge from './DueBadge'
 import EstimateBadge from './EstimateBadge'
+import Linkify from './Linkify'
 import PriorityPill from './PriorityPill'
 import { touch } from '../data/make'
 import { useData } from '../data/store'
@@ -36,6 +37,10 @@ function TodoRow({ domain, task, project }: { domain: Domain; task: Task; projec
     apply({ type: 'upsertTask', task: touch({ ...task, status } as Task) })
   }
   const Check = done ? CircleCheck : Circle
+  const result =
+    task.kind === 'claude' && ['review', 'done', 'blocked'].includes(task.status)
+      ? (task.result?.split('\n').find((l) => l.trim()) ?? '').trim()
+      : ''
   const brief = task.kind === 'claude' ? (task.brief.split('\n').find((l) => l.trim()) ?? '').trim() : ''
 
   return (
@@ -50,19 +55,31 @@ function TodoRow({ domain, task, project }: { domain: Domain; task: Task; projec
       >
         <Check className="size-5" aria-hidden />
       </button>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label={`Edit ${task.title}`}
-        className={`min-w-0 flex-1 rounded-md text-left ${FOCUS_RING} ${a.ring}`}
-      >
-        <span className={`block text-sm break-words ${done ? 'text-neutral-500 line-through dark:text-neutral-400' : ''}`}>
-          {task.title}
-        </span>
-        {project && <span className={`block text-xs break-words ${MUTED_TEXT}`}>{project.name}</span>}
-        {brief && <span className={`block truncate text-xs ${FAINT_TEXT}`}>{brief}</span>}
-      </button>
+      <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Edit ${task.title}`}
+          className={`block w-full rounded-md text-left ${FOCUS_RING} ${a.ring}`}
+        >
+          <span className={`block text-sm break-words ${done ? 'text-neutral-500 line-through dark:text-neutral-400' : ''}`}>
+            {task.title}
+          </span>
+          {project && <span className={`block text-xs break-words ${MUTED_TEXT}`}>{project.name}</span>}
+          {brief && <span className={`block truncate text-xs ${FAINT_TEXT}`}>{brief}</span>}
+        </button>
+        {result && (
+          <span className={`block truncate text-xs ${MUTED_TEXT}`}>
+            <Linkify text={result} />
+          </span>
+        )}
+      </div>
       <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+        {task.kind === 'claude' && task.auto && (
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+            auto
+          </span>
+        )}
         {task.kind === 'claude' && (
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${statusPill(task.status, domain)}`}>
             {STATUS_LABEL[task.status] ?? task.status}

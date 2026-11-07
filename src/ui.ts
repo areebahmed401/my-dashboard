@@ -10,7 +10,7 @@ export const INPUT =
 export const MUTED = 'text-sm text-neutral-500 dark:text-neutral-400'
 
 export const BASIC_STATUSES: BasicTask['status'][] = ['todo', 'doing', 'done']
-export const CLAUDE_STATUSES: ClaudeTask['status'][] = ['queued', 'in-progress', 'done', 'blocked']
+export const CLAUDE_STATUSES: ClaudeTask['status'][] = ['queued', 'in-progress', 'review', 'done', 'blocked']
 
 // Option order for status selects and filters
 export function statusesFor(domain: Domain): string[] {
@@ -19,7 +19,7 @@ export function statusesFor(domain: Domain): string[] {
 
 // Board column order
 export function columnsFor(domain: Domain): string[] {
-  return domain === 'claude' ? ['queued', 'in-progress', 'blocked', 'done'] : BASIC_STATUSES
+  return domain === 'claude' ? ['queued', 'in-progress', 'review', 'blocked', 'done'] : BASIC_STATUSES
 }
 
 export const PRIORITIES: Priority[] = [1, 2, 3, 4]

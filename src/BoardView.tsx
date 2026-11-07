@@ -101,7 +101,7 @@ export default function BoardView({
       {tasks.length === 0 ? (
         <EmptyState icon={ListTodo} title="No tasks yet" description="Add a task to see it on the board." />
       ) : (
-        <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${columns.length === 4 ? 'xl:grid-cols-4' : 'lg:grid-cols-3'}`}>
+        <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${columns.length === 5 ? 'lg:grid-cols-3 2xl:grid-cols-5' : columns.length === 4 ? 'xl:grid-cols-4' : 'lg:grid-cols-3'}`}>
           {columns.map((status) => {
             const items = sorted.filter((t) => t.status === status)
             return (

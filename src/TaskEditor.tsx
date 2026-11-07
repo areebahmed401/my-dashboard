@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import Button from './components/Button'
+import Linkify from './components/Linkify'
 import { DEFAULT_ESTIMATE_MIN, DEFAULT_PRIORITY } from './data/migrate'
 import { newBasicTask, newClaudeTask, touch } from './data/make'
 import { useData } from './data/store'
@@ -19,7 +20,7 @@ interface Props {
 }
 
 export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
-  const { apply } = useData()
+  const { data, apply } = useData()
   const isClaude = task ? task.kind === 'claude' : domain === 'claude'
   const claude = task?.kind === 'claude' ? task : undefined
 
@@ -29,9 +30,10 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
   const [priority, setPriority] = useState<Priority>(task?.priority ?? DEFAULT_PRIORITY)
   const [estimateMin, setEstimateMin] = useState(task?.estimateMin ?? DEFAULT_ESTIMATE_MIN)
   const [notes, setNotes] = useState(task?.notes ?? '')
-  const [repo, setRepo] = useState(claude?.repo ?? '')
+  const [repo, setRepo] = useState(claude?.repo ?? (isClaude ? (data?.projects.find((p) => p.id === projectId)?.path ?? '') : ''))
   const [brief, setBrief] = useState(claude?.brief ?? '')
   const [acceptance, setAcceptance] = useState(claude?.acceptance ?? '')
+  const [auto, setAuto] = useState(claude?.auto ?? false)
 
   const valid = title.trim() !== '' && (!isClaude || repo.trim() !== '')
 
@@ -52,6 +54,7 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
         repo: repo.trim(),
         brief,
         acceptance,
+        auto: auto || undefined,
       }
       apply({
         type: 'upsertTask',
@@ -96,6 +99,15 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
           <label className={LABEL}>
             Acceptance criteria
             <textarea rows={3} value={acceptance} onChange={(e) => setAcceptance(e.target.value)} className={FIELD} />
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="mt-0.5 size-4 shrink-0" />
+            <span className="min-w-0">
+              Claude may run this unattended
+              <span className={`block text-xs ${MUTED_TEXT}`}>
+                Only P1–P2 tasks with a brief and acceptance criteria are picked up automatically.
+              </span>
+            </span>
           </label>
         </>
       )}
@@ -146,7 +158,9 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
       {claude?.result && (
         <div className="text-sm">
           <div className={`text-xs font-medium ${MUTED_TEXT}`}>Result</div>
-          <p className="mt-1.5 whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">{claude.result}</p>
+          <p className="mt-1.5 whitespace-pre-wrap break-words text-neutral-700 dark:text-neutral-300">
+            <Linkify text={claude.result} />
+          </p>
         </div>
       )}
       <div className="flex gap-2 pt-1">
