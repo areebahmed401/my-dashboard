@@ -1,4 +1,5 @@
 import type { GithubConfig } from './config'
+import { emptyData } from './types'
 import type { DashboardData } from './types'
 
 export class ConflictError extends Error {}
@@ -62,7 +63,39 @@ function encodeBase64(text: string): string {
   return btoa(bin)
 }
 
+// Dev-only mock backend (token 'mock'); the import.meta.env.DEV guard strips it from production builds.
+const MOCK_KEY = 'my-dashboard.mock-data'
+
+function readMock(): { data: DashboardData; sha: string } {
+  try {
+    const raw = localStorage.getItem(MOCK_KEY)
+    if (raw) {
+      const p = JSON.parse(raw) as { data?: DashboardData; sha?: unknown }
+      if (p.data && typeof p.sha === 'string') return { data: p.data, sha: p.sha }
+    }
+  } catch {
+    // storage unavailable or corrupt: start empty
+  }
+  return { data: emptyData(), sha: '0' }
+}
+
+function mockFetch(): { data: DashboardData; sha: string } {
+  return readMock()
+}
+
+function mockSave(data: DashboardData, sha: string): string {
+  if (sha !== readMock().sha) throw new ConflictError('Mock sha mismatch')
+  const next = String(Number(sha) + 1)
+  try {
+    localStorage.setItem(MOCK_KEY, JSON.stringify({ data, sha: next }))
+  } catch {
+    // storage unavailable: mock data lasts for this session only
+  }
+  return next
+}
+
 export async function fetchData(cfg: GithubConfig): Promise<{ data: DashboardData; sha: string }> {
+  if (import.meta.env.DEV && cfg.token === 'mock') return mockFetch()
   const url = `${contentsUrl(cfg)}?ref=${encodeURIComponent(cfg.branch)}`
   const json = (await request(url, { headers: headers(cfg) })) as {
     content?: unknown
@@ -84,6 +117,7 @@ export async function saveData(
   sha: string,
   message: string,
 ): Promise<string> {
+  if (import.meta.env.DEV && cfg.token === 'mock') return mockSave(data, sha)
   const content = encodeBase64(JSON.stringify(data, null, 2) + '\n')
   const json = (await request(contentsUrl(cfg), {
     method: 'PUT',
