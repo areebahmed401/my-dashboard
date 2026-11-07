@@ -1,12 +1,13 @@
 import type { BasicTask, ClaudeTask, Domain, Task } from './data/types'
 
+// Legacy class strings, restyled to the neutral system; prefer the components in src/components/
 export const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
+  'inline-flex items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-700 shadow-sm transition-colors duration-150 hover:bg-neutral-50 hover:text-neutral-900 outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 dark:shadow-none dark:hover:bg-neutral-900 dark:hover:text-white'
 export const PRIMARY =
-  'rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
+  'inline-flex items-center justify-center gap-1.5 rounded-lg bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-colors duration-150 hover:bg-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/50 disabled:pointer-events-none disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900 dark:shadow-none dark:hover:bg-white'
 export const INPUT =
-  'rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-900'
-export const MUTED = 'text-sm text-slate-500 dark:text-slate-400'
+  'rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 transition-colors duration-150 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-500/20 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-600 dark:[color-scheme:dark]'
+export const MUTED = 'text-sm text-neutral-500 dark:text-neutral-400'
 
 export const BASIC_STATUSES: BasicTask['status'][] = ['todo', 'doing', 'done']
 export const CLAUDE_STATUSES: ClaudeTask['status'][] = ['queued', 'in-progress', 'done', 'blocked']

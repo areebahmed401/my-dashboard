@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
+import { CalendarDays, Database, Monitor, Moon, Palette, Sun } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import Button from './components/Button'
+import Segmented from './components/Segmented'
 import { clearToken } from './data/config'
 import type { GithubConfig } from './data/config'
 import { fetchData } from './data/github'
 import { useData } from './data/store'
 import { connect, disconnect, loadGis, useGcalStatus } from './gcal/auth'
 import { DEFAULT_CLIENT_ID, getClientIdOverride, setClientIdOverride } from './gcal/config'
+import { ACCENT, MUTED_TEXT, SURFACE, useTheme } from './theme'
+import type { AccentKey, ThemePref } from './theme'
+import { INPUT } from './ui'
 
 const FIELDS = [
   { key: 'owner', label: 'Owner' },
@@ -14,24 +21,58 @@ const FIELDS = [
   { key: 'token', label: 'Token' },
 ] as const
 
-const INPUT =
-  'mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 font-normal dark:border-slate-700 dark:bg-slate-900'
-const PRIMARY =
-  'rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
-const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
+const LABEL = `block text-xs font-medium ${MUTED_TEXT}`
+const FIELD = `${INPUT} mt-1.5 block w-full`
+
+const THEME_OPTIONS: { value: ThemePref; label: string; icon: LucideIcon }[] = [
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+]
 
 function Message({ message }: { message: { text: string; ok: boolean } | null }) {
   if (!message) return null
   return (
     <p
       role="status"
-      className={`text-sm break-words ${
-        message.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'
+      className={`rounded-lg px-3 py-2 text-sm break-words ${
+        message.ok
+          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+          : 'bg-red-500/10 text-red-700 dark:text-red-400'
       }`}
     >
       {message.text}
     </p>
+  )
+}
+
+function Section({
+  icon: Icon,
+  accent,
+  title,
+  description,
+  children,
+}: {
+  icon: LucideIcon
+  accent: AccentKey
+  title: string
+  description: string
+  children: ReactNode
+}) {
+  const a = ACCENT[accent]
+  return (
+    <section className={`${SURFACE} p-4 sm:p-5`}>
+      <div className="flex items-start gap-3">
+        <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${a.softBg} ${a.text}`}>
+          <Icon className="size-[18px]" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h2 className="font-semibold">{title}</h2>
+          <p className={`mt-0.5 text-sm ${MUTED_TEXT}`}>{description}</p>
+        </div>
+      </div>
+      <div className="mt-4">{children}</div>
+    </section>
   )
 }
 
@@ -68,39 +109,50 @@ function GoogleSettings() {
   }
 
   return (
-    <form onSubmit={onSave} className="mt-10 max-w-md space-y-4">
-      <h3 className="text-lg font-semibold">Google Calendar</h3>
-      <label className="block text-sm font-medium">
-        Client ID
-        <input
-          type="text"
-          autoComplete="off"
-          value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
-          className={INPUT}
-        />
-      </label>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        OAuth client ID of the Google Cloud app. Leave empty for the default. The access token stays
-        in this tab's sessionStorage only.
-      </p>
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" className={PRIMARY}>
-          Save
-        </button>
-        {status !== 'connected' && (
-          <button type="button" onClick={onConnect} disabled={busy} className={BUTTON}>
-            {status === 'expired' ? 'Reconnect' : 'Connect'}
-          </button>
-        )}
-        {status !== 'disconnected' && (
-          <button type="button" onClick={onDisconnect} className={BUTTON}>
-            Disconnect
-          </button>
-        )}
-      </div>
-      <Message message={message} />
-    </form>
+    <Section
+      icon={CalendarDays}
+      accent="calendar"
+      title="Google Calendar"
+      description="Show events next to your tasks and sync due dates to a Google calendar."
+    >
+      <form onSubmit={onSave} className="space-y-4">
+        <label className={LABEL}>
+          Client ID
+          <input
+            type="text"
+            autoComplete="off"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className={FIELD}
+          />
+        </label>
+        <p className={`text-sm ${MUTED_TEXT}`}>
+          OAuth client ID of the Google Cloud app. Leave empty for the default. The access token stays in this tab's
+          sessionStorage only.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="primary" accent="calendar">
+            Save
+          </Button>
+          {status !== 'connected' && (
+            <Button onClick={onConnect} disabled={busy}>
+              {status === 'expired' ? 'Reconnect' : 'Connect'}
+            </Button>
+          )}
+          {status !== 'disconnected' && <Button onClick={onDisconnect}>Disconnect</Button>}
+        </div>
+        <Message message={message} />
+      </form>
+    </Section>
+  )
+}
+
+function Appearance() {
+  const [pref, setPref] = useTheme()
+  return (
+    <Section icon={Palette} accent="home" title="Appearance" description="Dark mode is true black. System follows your device.">
+      <Segmented value={pref} onChange={setPref} options={THEME_OPTIONS} label="Theme" />
+    </Section>
   )
 }
 
@@ -146,41 +198,46 @@ export default function Settings() {
   }
 
   return (
-    <>
-      <form onSubmit={onSave} className="mt-4 max-w-md space-y-4">
-        {FIELDS.map((f) => (
-          <label key={f.key} className="block text-sm font-medium">
-            {f.label}
-            <input
-              type={f.key === 'token' ? 'password' : 'text'}
-              autoComplete="off"
-              value={form[f.key]}
-              onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-              className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 font-normal dark:border-slate-700 dark:bg-slate-900"
-            />
-          </label>
-        ))}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Fine-grained token with Contents: Read and write on this repo only. Stored in this
-          browser's localStorage; never sent anywhere except api.github.com.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
-          >
-            Save
-          </button>
-          <button type="button" onClick={onTest} disabled={testing} className={BUTTON}>
-            {testing ? 'Testing…' : 'Test connection'}
-          </button>
-          <button type="button" onClick={onForget} className={BUTTON}>
-            Forget token
-          </button>
-        </div>
-        <Message message={message} />
-      </form>
+    <div className="mt-4 max-w-2xl space-y-4">
+      <Section
+        icon={Database}
+        accent="home"
+        title="GitHub data"
+        description="Tasks and projects live in a private repo as data.json."
+      >
+        <form onSubmit={onSave} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {FIELDS.map((f) => (
+              <label key={f.key} className={LABEL}>
+                {f.label}
+                <input
+                  type={f.key === 'token' ? 'password' : 'text'}
+                  autoComplete="off"
+                  value={form[f.key]}
+                  onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+                  className={FIELD}
+                />
+              </label>
+            ))}
+          </div>
+          <p className={`text-sm ${MUTED_TEXT}`}>
+            Fine-grained token with Contents: Read and write on this repo only. Stored in this browser's localStorage;
+            never sent anywhere except api.github.com.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="primary">
+              Save
+            </Button>
+            <Button onClick={onTest} disabled={testing}>
+              {testing ? 'Testing…' : 'Test connection'}
+            </Button>
+            <Button onClick={onForget}>Forget token</Button>
+          </div>
+          <Message message={message} />
+        </form>
+      </Section>
       <GoogleSettings />
-    </>
+      <Appearance />
+    </div>
   )
 }

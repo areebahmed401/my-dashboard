@@ -1,0 +1,503 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  AlarmClock,
+  ArrowRight,
+  CalendarCheck,
+  CalendarDays,
+  CalendarRange,
+  Check,
+  CircleAlert,
+  Database,
+  PartyPopper,
+  Sparkles,
+  X,
+} from 'lucide-react'
+import Card from './components/Card'
+import DueBadge from './components/DueBadge'
+import EmptyState from './components/EmptyState'
+import ProgressBar from './components/ProgressBar'
+import StatCard from './components/StatCard'
+import { buttonClass } from './components/classes'
+import { useToast } from './components/useToast'
+import { touch } from './data/make'
+import { useData } from './data/store'
+import type { DashboardData, Domain, Project, Task } from './data/types'
+import { daysUntil, localYmd } from './due'
+import { GoogleAuthError, listCalendars, listEvents } from './gcal/api'
+import type { GCalendar, GEvent } from './gcal/api'
+import { useGcalStatus } from './gcal/auth'
+import { getHiddenCalendars } from './gcal/config'
+import { isTasksCalendar } from './gcal/taskSync'
+import { ACCENT, DOMAINS, FOCUS_RING, MUTED_TEXT, SURFACE } from './theme'
+
+type Filter = 'overdue' | 'today' | 'week' | 'claude'
+const FILTER_LABEL: Record<Filter, string> = {
+  overdue: 'Overdue',
+  today: 'Due today',
+  week: 'Due this week',
+  claude: 'Claude queue',
+}
+
+const SECTION_TITLE = 'text-sm font-semibold text-neutral-900 dark:text-neutral-100'
+
+function greeting(h: number): string {
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
+interface Row {
+  task: Task
+  project: Project
+  days: number | null
+}
+
+export default function Home() {
+  const { data, status, error } = useData()
+  const [now] = useState(() => new Date())
+  const longDate = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+
+  return (
+    <div className="space-y-8">
+      <header>
+        <p className={`text-sm font-medium ${MUTED_TEXT}`}>{longDate}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{greeting(now.getHours())}</h1>
+      </header>
+
+      {data ? (
+        <TaskSections data={data} />
+      ) : status === 'unconfigured' ? (
+        <SetupCard />
+      ) : status === 'error' ? (
+        <Card className="flex items-start gap-3 text-sm text-red-600 dark:text-red-400">
+          <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span className="break-words">{error}</span>
+        </Card>
+      ) : (
+        <LoadingBlock label={status === 'offline' ? 'Offline.' : 'Loading your tasks…'} />
+      )}
+
+      <WeekPanel />
+
+      {data && <DomainGrid data={data} />}
+    </div>
+  )
+}
+
+function LoadingBlock({ label }: { label: string }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true" aria-label={label}>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className={`${SURFACE} h-[92px] animate-pulse`} />
+      ))}
+    </div>
+  )
+}
+
+function SetupCard() {
+  return (
+    <Card className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+        <Database className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="font-semibold">Connect your task data</p>
+        <p className={`mt-0.5 text-sm ${MUTED_TEXT}`}>
+          Add your GitHub data repo and token in Settings to see what is due, your Claude queue and progress per domain.
+        </p>
+      </div>
+      <a href="#settings" className={buttonClass({ variant: 'primary' })}>
+        Open Settings
+        <ArrowRight className="size-4" aria-hidden />
+      </a>
+    </Card>
+  )
+}
+
+function TaskSections({ data }: { data: DashboardData }) {
+  const { apply } = useData()
+  const toast = useToast()
+  const [filter, setFilter] = useState<Filter | null>(null)
+  const focusRef = useRef<HTMLElement>(null)
+
+  const rows = useMemo<Row[]>(() => {
+    const byId = new Map(data.projects.map((p) => [p.id, p]))
+    const out: Row[] = []
+    for (const task of data.tasks) {
+      const project = byId.get(task.projectId)
+      if (!project || task.status === 'done') continue
+      out.push({ task, project, days: task.due ? daysUntil(task.due) : null })
+    }
+    return out
+  }, [data])
+
+  const inWeek = (r: Row) => r.days !== null && r.days >= 0 && r.days <= 7
+  const match: Record<Filter, (r: Row) => boolean> = {
+    overdue: (r) => r.days !== null && r.days < 0,
+    today: (r) => r.days === 0,
+    week: inWeek,
+    claude: (r) => r.project.domain === 'claude' && (r.task.status === 'queued' || r.task.status === 'in-progress'),
+  }
+  const count = (f: Filter) => rows.filter(match[f]).length
+
+  const focus = rows
+    .filter(filter ? match[filter] : (r) => match.overdue(r) || inWeek(r))
+    .sort((a, b) => {
+      if (a.task.due !== b.task.due) {
+        if (!a.task.due) return 1
+        if (!b.task.due) return -1
+        return a.task.due < b.task.due ? -1 : 1
+      }
+      return a.task.createdAt < b.task.createdAt ? -1 : 1
+    })
+
+  const pick = (f: Filter) => {
+    setFilter((cur) => (cur === f ? null : f))
+    focusRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const markDone = (task: Task) => {
+    apply({ type: 'upsertTask', task: touch({ ...task, status: 'done' }) })
+    toast({
+      message: 'Marked done',
+      action: { label: 'Undo', onClick: () => apply({ type: 'upsertTask', task: touch(task) }) },
+    })
+  }
+
+  const overdue = count('overdue')
+  return (
+    <>
+      <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Overdue"
+          value={overdue}
+          icon={CircleAlert}
+          tone={overdue > 0 ? 'red' : 'home'}
+          active={filter === 'overdue'}
+          onClick={() => pick('overdue')}
+        />
+        <StatCard label="Due today" value={count('today')} icon={AlarmClock} tone="german" active={filter === 'today'} onClick={() => pick('today')} />
+        <StatCard label="Due this week" value={count('week')} icon={CalendarRange} tone="study" active={filter === 'week'} onClick={() => pick('week')} />
+        <StatCard label="Claude queue" value={count('claude')} icon={Sparkles} tone="claude" active={filter === 'claude'} onClick={() => pick('claude')} />
+      </section>
+
+      <section ref={focusRef} aria-labelledby="focus-title" className="scroll-mt-20">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 id="focus-title" className={SECTION_TITLE}>
+            Focus
+            <span className={`ml-2 font-normal tabular-nums ${MUTED_TEXT}`}>{focus.length}</span>
+          </h2>
+          {filter && (
+            <button
+              type="button"
+              onClick={() => setFilter(null)}
+              className={`inline-flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pr-1.5 pl-2.5 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
+            >
+              {FILTER_LABEL[filter]}
+              <X className="size-3.5" aria-label="Clear filter" />
+            </button>
+          )}
+        </div>
+        {focus.length === 0 ? (
+          <EmptyState
+            icon={PartyPopper}
+            title={filter ? `Nothing in ${FILTER_LABEL[filter].toLowerCase()}` : 'Nothing due this week 🎉'}
+            description={filter ? undefined : 'Enjoy the calm, or press N to add something.'}
+          />
+        ) : (
+          <ul className={`${SURFACE} divide-y divide-neutral-100 overflow-hidden dark:divide-neutral-800/80`}>
+            {focus.map((r) => (
+              <FocusRow key={r.task.id} row={r} onDone={() => markDone(r.task)} />
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
+  )
+}
+
+function FocusRow({ row, onDone }: { row: Row; onDone: () => void }) {
+  const { task, project } = row
+  const a = ACCENT[project.domain]
+  return (
+    <li className="group flex items-center gap-3 px-3 transition-colors duration-150 hover:bg-neutral-50 sm:px-4 dark:hover:bg-neutral-900/60">
+      <button
+        type="button"
+        onClick={onDone}
+        aria-label={`Mark "${task.title}" done`}
+        title="Mark done"
+        className={`flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] border-neutral-300 text-transparent transition-colors duration-150 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:border-neutral-600 dark:hover:text-emerald-400 ${FOCUS_RING} focus-visible:ring-emerald-500/50`}
+      >
+        <Check className="size-3" strokeWidth={3} aria-hidden />
+      </button>
+      <a
+        href={`#${project.domain}`}
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 outline-none focus-visible:underline"
+      >
+        <span className={`size-2 shrink-0 rounded-full ${a.dot}`} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">{task.title}</span>
+          <span className={`block truncate text-xs ${MUTED_TEXT}`}>
+            {a.label} · {project.name}
+          </span>
+        </span>
+        <DueBadge due={task.due} accent={project.domain} />
+      </a>
+    </li>
+  )
+}
+
+function DomainGrid({ data }: { data: DashboardData }) {
+  const stats = useMemo(() => {
+    const domainOf = new Map(data.projects.map((p) => [p.id, p.domain]))
+    const out = Object.fromEntries(
+      DOMAINS.map((d) => [d, { open: 0, active: 0, done: 0, next: null as Task | null }]),
+    ) as Record<Domain, { open: number; active: number; done: number; next: Task | null }>
+    for (const t of data.tasks) {
+      const d = domainOf.get(t.projectId)
+      if (!d) continue
+      const s = out[d]
+      if (t.status === 'done') {
+        s.done++
+        continue
+      }
+      s.open++
+      if (t.status === 'doing' || t.status === 'in-progress') s.active++
+      if (t.due && (!s.next?.due || t.due < s.next.due)) s.next = t
+    }
+    return out
+  }, [data])
+
+  return (
+    <section aria-labelledby="domains-title">
+      <h2 id="domains-title" className={`mb-3 ${SECTION_TITLE}`}>
+        Domains
+      </h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {DOMAINS.map((d) => {
+          const a = ACCENT[d]
+          const Icon = a.icon
+          const s = stats[d]
+          const total = s.open + s.done
+          return (
+            <Card key={d} href={`#${d}`} padded={false} className="overflow-hidden">
+              <div className={`flex items-center gap-3 px-4 pt-4 pb-3 ${a.gradient}`}>
+                <span className={`flex size-8 items-center justify-center rounded-lg bg-white/70 dark:bg-black/40 ${a.text}`}>
+                  <Icon className="size-[18px]" aria-hidden />
+                </span>
+                <span className="flex-1 font-semibold">{a.label}</span>
+                <ArrowRight
+                  className="size-4 text-neutral-400 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-neutral-600 dark:group-hover:text-neutral-300"
+                  aria-hidden
+                />
+              </div>
+              <div className="space-y-3 px-4 pb-4">
+                <dl className="flex gap-5 text-sm">
+                  {(
+                    [
+                      ['Open', s.open],
+                      [d === 'claude' ? 'In progress' : 'Doing', s.active],
+                      ['Done', s.done],
+                    ] as const
+                  ).map(([label, n]) => (
+                    <div key={label}>
+                      <dt className={`text-xs ${MUTED_TEXT}`}>{label}</dt>
+                      <dd className="font-semibold tabular-nums">{n}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="flex items-center gap-2">
+                  <ProgressBar value={s.done} max={total} accent={d} label={`${a.label} progress`} />
+                  <span className={`text-xs tabular-nums ${MUTED_TEXT}`}>
+                    {total > 0 ? Math.round((s.done / total) * 100) : 0}%
+                  </span>
+                </div>
+                <div className="flex min-h-6 items-center gap-2 text-sm">
+                  {s.next ? (
+                    <>
+                      <span className={`shrink-0 text-xs ${MUTED_TEXT}`}>Next</span>
+                      <span className="min-w-0 flex-1 truncate">{s.next.title}</span>
+                      <DueBadge due={s.next.due} accent={d} />
+                    </>
+                  ) : (
+                    <span className={`text-xs ${MUTED_TEXT}`}>{s.open > 0 ? 'No due dates set' : 'All clear'}</span>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+// ---- Calendar panel ----
+
+interface WeekEvent {
+  id: string
+  title: string
+  day: string // YYYY-MM-DD local
+  time: string // '' for all-day
+  sort: string
+  color: string
+}
+
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function rfc3339(d: Date): string {
+  const off = -d.getTimezoneOffset()
+  const sign = off >= 0 ? '+' : '-'
+  return `${localYmd(d)}T00:00:00${sign}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`
+}
+
+function toWeekEvent(e: GEvent, c: GCalendar): WeekEvent | null {
+  if (e.start.dateTime) {
+    const d = new Date(e.start.dateTime)
+    return {
+      id: `${c.id}|${e.id}`,
+      title: e.summary || '(No title)',
+      day: localYmd(d),
+      time: d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      sort: d.toISOString(),
+      color: c.backgroundColor,
+    }
+  }
+  if (e.start.date) {
+    return { id: `${c.id}|${e.id}`, title: e.summary || '(No title)', day: e.start.date, time: '', sort: '', color: c.backgroundColor }
+  }
+  return null
+}
+
+function dayLabel(ymd: string): string {
+  const n = daysUntil(ymd)
+  if (n === 0) return 'Today'
+  if (n === 1) return 'Tomorrow'
+  const [y, m, d] = ymd.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
+}
+
+function WeekPanel() {
+  const status = useGcalStatus()
+  return (
+    <section aria-labelledby="week-title">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 id="week-title" className={SECTION_TITLE}>
+          This week
+        </h2>
+        <a
+          href="#calendar"
+          className={`inline-flex items-center gap-1 rounded text-xs font-medium ${ACCENT.calendar.text} hover:underline ${FOCUS_RING} ${ACCENT.calendar.ring}`}
+        >
+          Calendar
+          <ArrowRight className="size-3.5" aria-hidden />
+        </a>
+      </div>
+      {status === 'connected' ? <WeekEvents /> : <ConnectCalendarCard reconnect={status === 'expired'} />}
+    </section>
+  )
+}
+
+function ConnectCalendarCard({ reconnect }: { reconnect: boolean }) {
+  return (
+    <Card href="#calendar" className="flex items-center gap-3">
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${ACCENT.calendar.softBg} ${ACCENT.calendar.text}`}>
+        <CalendarDays className="size-[18px]" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{reconnect ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}</span>
+        <span className={`block text-xs ${MUTED_TEXT}`}>See this week's events next to your tasks.</span>
+      </span>
+      <ArrowRight className="size-4 text-neutral-400 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+    </Card>
+  )
+}
+
+const MAX_EVENTS = 12
+
+function WeekEvents() {
+  const [state, setState] = useState<{ events: WeekEvent[] | null; error: boolean }>({ events: null, error: false })
+
+  useEffect(() => {
+    let live = true
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(start)
+    end.setDate(end.getDate() + 7)
+    const hidden = getHiddenCalendars()
+    listCalendars()
+      .then((cals) => {
+        const visible = cals.filter((c) => !isTasksCalendar(c) && !hidden.includes(c.id))
+        return Promise.all(
+          visible.map((c) =>
+            listEvents(c.id, rfc3339(start), rfc3339(end)).then((evs) =>
+              evs.map((e) => toWeekEvent(e, c)).filter((e): e is WeekEvent => e !== null),
+            ),
+          ),
+        )
+      })
+      .then((lists) => {
+        if (!live) return
+        const today = localYmd(start)
+        const events = lists
+          .flat()
+          .filter((e) => e.day >= today)
+          .sort((a, b) => (a.day !== b.day ? (a.day < b.day ? -1 : 1) : a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0))
+        setState({ events, error: false })
+      })
+      .catch((e: unknown) => {
+        // auth errors flip the gcal status, which swaps this panel for the connect card
+        if (live && !(e instanceof GoogleAuthError)) setState({ events: [], error: true })
+      })
+    return () => {
+      live = false
+    }
+  }, [])
+
+  const { events, error } = state
+  if (!events) {
+    return (
+      <div className={`${SURFACE} space-y-3 p-4`} aria-busy="true" aria-label="Loading events">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-4 w-2/3 animate-pulse rounded bg-neutral-100 dark:bg-neutral-900" />
+        ))}
+      </div>
+    )
+  }
+  if (error) {
+    return <p className={`text-sm ${MUTED_TEXT}`}>Couldn't load events right now. Open the Calendar tab to retry.</p>
+  }
+  if (events.length === 0) {
+    return <EmptyState icon={CalendarCheck} title="No events in the next 7 days" />
+  }
+
+  const shown = events.slice(0, MAX_EVENTS)
+  const days = [...new Set(shown.map((e) => e.day))]
+  return (
+    <div className={`${SURFACE} divide-y divide-neutral-100 dark:divide-neutral-800/80`}>
+      {days.map((day) => (
+        <div key={day} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-4">
+          <div className={`w-36 shrink-0 pt-0.5 text-xs font-medium ${daysUntil(day) === 0 ? ACCENT.calendar.text : MUTED_TEXT}`}>
+            {dayLabel(day)}
+          </div>
+          <ul className="min-w-0 flex-1 space-y-1.5">
+            {shown
+              .filter((e) => e.day === day)
+              .map((e) => (
+                <li key={e.id} className="flex items-center gap-2.5 text-sm">
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: e.color }} aria-hidden />
+                  <span className={`w-12 shrink-0 text-xs tabular-nums ${MUTED_TEXT}`}>{e.time || 'All day'}</span>
+                  <span className="min-w-0 flex-1 truncate">{e.title}</span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      ))}
+      {events.length > MAX_EVENTS && (
+        <a href="#calendar" className={`block px-4 py-2.5 text-xs font-medium ${MUTED_TEXT} hover:text-neutral-900 dark:hover:text-neutral-100`}>
+          +{events.length - MAX_EVENTS} more in Calendar
+        </a>
+      )}
+    </div>
+  )
+}

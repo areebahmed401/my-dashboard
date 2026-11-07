@@ -1,146 +1,132 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Settings as SettingsIcon } from 'lucide-react'
 import CalendarView from './CalendarView'
 import DomainView from './DomainView'
+import Home from './Home'
 import Settings from './Settings'
+import { MobileTabBar, MobileTopBar } from './components/MobileNav'
+import QuickAdd from './components/QuickAdd'
+import Sidebar from './components/Sidebar'
 import { useData } from './data/store'
-import type { SyncStatus } from './data/store'
 import type { Domain } from './data/types'
-
-const TABS = [
-  { id: 'study', label: 'Study' },
-  { id: 'job-search', label: 'Job Search' },
-  { id: 'german', label: 'German' },
-  { id: 'claude', label: 'Claude' },
-  { id: 'calendar', label: 'Calendar' },
-] as const
-
-type TabId = (typeof TABS)[number]['id']
-type Route = TabId | 'settings'
+import { ACCENT, DOMAINS, NAV_KEYS } from './theme'
+import type { AccentKey, Route } from './theme'
 
 function routeFromHash(): Route {
   const id = window.location.hash.slice(1)
   if (id === 'settings') return 'settings'
-  return TABS.some((t) => t.id === id) ? (id as TabId) : 'study'
+  return NAV_KEYS.find((k) => k === id) ?? 'home'
 }
 
-const PILL: Record<Exclude<SyncStatus, 'unconfigured'>, { label: string; cls: string }> = {
-  loading: { label: 'Loading…', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' },
-  saved: { label: 'Saved', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' },
-  saving: { label: 'Saving…', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
-  offline: { label: 'Offline', cls: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200' },
-  error: { label: 'Error', cls: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' },
-}
-
-function StatusPill() {
-  const { status, error } = useData()
-  const base = 'rounded-full px-2.5 py-0.5 text-xs whitespace-nowrap'
-  if (status === 'unconfigured') {
-    return (
-      <a
-        href="#settings"
-        className={`${base} bg-slate-100 text-slate-600 hover:underline dark:bg-slate-800 dark:text-slate-300`}
-      >
-        Not connected
-      </a>
-    )
-  }
-  const p = PILL[status]
-  return (
-    <span className={`${base} ${p.cls}`} title={error ?? undefined}>
-      {p.label}
-    </span>
-  )
-}
+const isDomain = (r: Route): r is Domain => (DOMAINS as string[]).includes(r)
 
 function DomainBody({ domain }: { domain: Domain }) {
   const { data, status, error } = useData()
-  const muted = 'mt-2 text-slate-500 dark:text-slate-400'
+  const muted = 'mt-2 text-sm text-neutral-500 dark:text-neutral-400'
   if (status === 'unconfigured') {
     return (
       <p className={muted}>
-        <a href="#settings" className="underline">
+        <a href="#settings" className="font-medium text-neutral-900 underline dark:text-neutral-100">
           Connect your data repo in Settings
         </a>
       </p>
     )
   }
   if (!data) {
-    if (status === 'error') return <p className="mt-2 text-red-700 dark:text-red-400">{error}</p>
+    if (status === 'error') return <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
     return <p className={muted}>{status === 'offline' ? 'Offline.' : 'Loading…'}</p>
   }
   return (
     <>
-      {status === 'error' && <p className="mt-2 text-red-700 dark:text-red-400">{error}</p>}
+      {status === 'error' && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
       <DomainView domain={domain} />
     </>
   )
 }
 
+// n / N opens quick add unless typing or another dialog is open
+function isTyping(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false
+  return t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
+}
+
+function PageHeader({ route }: { route: Route }) {
+  const a = route === 'settings' ? null : ACCENT[route]
+  const Icon = a?.icon ?? SettingsIcon
+  return (
+    <div className="mb-2 hidden items-center gap-3 md:flex">
+      <span className={`flex size-9 items-center justify-center rounded-xl ${a?.softBg ?? 'bg-neutral-100 dark:bg-neutral-900'}`}>
+        <Icon className={`size-5 ${a?.text ?? 'text-neutral-600 dark:text-neutral-300'}`} aria-hidden />
+      </span>
+      <h1 className="text-2xl font-semibold tracking-tight">{a?.label ?? 'Settings'}</h1>
+    </div>
+  )
+}
+
 export default function App() {
   const [route, setRoute] = useState<Route>(routeFromHash)
+  const [quickOpen, setQuickOpen] = useState(false)
+  const { data } = useData()
 
   useEffect(() => {
-    const onHash = () => setRoute(routeFromHash())
+    const onHash = () => {
+      setRoute(routeFromHash())
+      window.scrollTo(0, 0)
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  const current = TABS.find((t) => t.id === route)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'n' && e.key !== 'N') return
+      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return
+      if (document.querySelector('[aria-modal="true"], .fixed.inset-0')) return
+      e.preventDefault()
+      setQuickOpen(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Open (not done) tasks per domain for the sidebar
+  const counts = useMemo(() => {
+    const out: Partial<Record<AccentKey, number>> = {}
+    if (!data) return out
+    const domainOf = new Map(data.projects.map((p) => [p.id, p.domain]))
+    for (const t of data.tasks) {
+      const d = domainOf.get(t.projectId)
+      if (d && t.status !== 'done') out[d] = (out[d] ?? 0) + 1
+    }
+    return out
+  }, [data])
+
+  const openQuick = () => setQuickOpen(true)
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
-          <h1 className="order-1 text-lg font-semibold">My Dashboard</h1>
-          <div className="order-2 ml-auto flex items-center gap-2 sm:order-3">
-            <StatusPill />
-            <a
-              href="#settings"
-              aria-label="Settings"
-              className={`rounded-md px-2 py-1 text-lg leading-none ${
-                route === 'settings'
-                  ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                  : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-              }`}
-            >
-              ⚙
-            </a>
-          </div>
-          <nav className="order-3 flex w-full min-w-0 gap-1 overflow-x-auto sm:order-2 sm:w-auto sm:flex-1">
-            {TABS.map((t) => (
-              <a
-                key={t.id}
-                href={`#${t.id}`}
-                data-tab={t.id}
-                className={`rounded-md px-3 py-1.5 text-sm whitespace-nowrap ${
-                  t.id === route
-                    ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
-                }`}
-              >
-                {t.label}
-              </a>
-            ))}
-          </nav>
+    <div className="min-h-dvh bg-neutral-50 text-neutral-900 dark:bg-black dark:text-neutral-100">
+      <Sidebar route={route} counts={counts} onQuickAdd={openQuick} />
+      <MobileTopBar route={route} onQuickAdd={openQuick} />
+      <main className="min-w-0 md:pl-64">
+        <div className="mx-auto max-w-6xl px-4 pt-5 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 md:px-10 md:py-10">
+          {route === 'home' ? (
+            <Home />
+          ) : (
+            <>
+              <PageHeader route={route} />
+              {route === 'calendar' ? (
+                <CalendarView />
+              ) : route === 'settings' ? (
+                <Settings />
+              ) : isDomain(route) ? (
+                <DomainBody key={route} domain={route} />
+              ) : null}
+            </>
+          )}
         </div>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
-        {current ? (
-          <>
-            <h2 className="text-2xl font-semibold">{current.label}</h2>
-            {current.id === 'calendar' ? (
-              <CalendarView />
-            ) : (
-              <DomainBody domain={current.id} />
-            )}
-          </>
-        ) : (
-          <>
-            <h2 className="text-2xl font-semibold">Settings</h2>
-            <Settings />
-          </>
-        )}
       </main>
+      <MobileTabBar route={route} />
+      <QuickAdd open={quickOpen} onClose={() => setQuickOpen(false)} domain={isDomain(route) ? route : undefined} />
     </div>
   )
 }

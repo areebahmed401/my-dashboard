@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
+import Button from './components/Button'
+import Modal from './components/Modal'
 import { GoogleAuthError, canWrite, deleteEvent, insertEvent, patchEvent } from './gcal/api'
 import type { EventTime, GCalendar, GEvent } from './gcal/api'
 import { addDays, daysBetween } from './gcal/taskSync'
+import { MUTED_TEXT } from './theme'
+import { INPUT } from './ui'
 
 export interface EditTarget {
   calendarId: string
@@ -37,10 +41,8 @@ function initial(target: EditTarget) {
   }
 }
 
-const INPUT =
-  'mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 font-normal dark:border-slate-700 dark:bg-slate-900'
-const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
+const LABEL = `block text-xs font-medium ${MUTED_TEXT}`
+const FIELD = `${INPUT} mt-1.5 block w-full disabled:opacity-60`
 
 export default function EventEditor({
   target,
@@ -53,6 +55,7 @@ export default function EventEditor({
   onClose: () => void
   onSaved: () => void
 }) {
+  const formId = useId()
   const [form, setForm] = useState(() => initial(target))
   const [calendarId, setCalendarId] = useState(target.calendarId)
   const [busy, setBusy] = useState(false)
@@ -110,21 +113,36 @@ export default function EventEditor({
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }))
 
+  const footer = (
+    <>
+      {!readOnly && !isNew && (
+        <Button variant="danger" onClick={onDelete} disabled={busy} className="mr-auto">
+          Delete
+        </Button>
+      )}
+      <Button variant="ghost" onClick={onClose}>
+        {readOnly ? 'Close' : 'Cancel'}
+      </Button>
+      {!readOnly && (
+        <Button type="submit" form={formId} variant="primary" accent="calendar" disabled={busy}>
+          {busy ? 'Saving…' : 'Save'}
+        </Button>
+      )}
+    </>
+  )
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      title={isNew ? 'New event' : readOnly ? 'Event details' : 'Edit event'}
+      footer={footer}
     >
-      <form
-        onSubmit={onSubmit}
-        onClick={(e) => e.stopPropagation()}
-        className="mt-10 w-full max-w-md space-y-3 rounded-lg bg-white p-4 shadow-lg dark:bg-slate-900"
-      >
-        <h3 className="text-lg font-semibold">{isNew ? 'New event' : readOnly ? 'Event details' : 'Edit event'}</h3>
-        <label className="block text-sm font-medium">
+      <form id={formId} onSubmit={onSubmit} className="space-y-4">
+        <label className={LABEL}>
           Calendar
           {isNew ? (
-            <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)} className={INPUT}>
+            <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)} className={FIELD}>
               {writable.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.summary}
@@ -132,22 +150,23 @@ export default function EventEditor({
               ))}
             </select>
           ) : (
-            <p className="mt-1 font-normal">{cal?.summary ?? calendarId}</p>
+            <p className="mt-1.5 text-sm font-normal text-neutral-900 dark:text-neutral-100">{cal?.summary ?? calendarId}</p>
           )}
         </label>
-        <label className="block text-sm font-medium">
+        <label className={LABEL}>
           Title
           <input
             value={form.title}
             onChange={(e) => set('title', e.target.value)}
             disabled={readOnly}
             autoFocus={!readOnly}
-            className={INPUT}
+            className={FIELD}
           />
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="size-4 accent-fuchsia-600"
             checked={form.allDay}
             onChange={(e) => {
               const allDay = e.target.checked
@@ -158,7 +177,7 @@ export default function EventEditor({
           All day
         </label>
         <div className="flex flex-wrap gap-3">
-          <label className="block text-sm font-medium">
+          <label className={`${LABEL} min-w-36 flex-1`}>
             Date
             <input
               type="date"
@@ -166,12 +185,12 @@ export default function EventEditor({
               value={form.date}
               onChange={(e) => set('date', e.target.value)}
               disabled={readOnly}
-              className={INPUT}
+              className={FIELD}
             />
           </label>
           {!form.allDay && (
             <>
-              <label className="block text-sm font-medium">
+              <label className={`${LABEL} min-w-28 flex-1`}>
                 Start
                 <input
                   type="time"
@@ -179,10 +198,10 @@ export default function EventEditor({
                   value={form.start}
                   onChange={(e) => set('start', e.target.value)}
                   disabled={readOnly}
-                  className={INPUT}
+                  className={FIELD}
                 />
               </label>
-              <label className="block text-sm font-medium">
+              <label className={`${LABEL} min-w-28 flex-1`}>
                 End
                 <input
                   type="time"
@@ -190,54 +209,32 @@ export default function EventEditor({
                   value={form.end}
                   onChange={(e) => set('end', e.target.value)}
                   disabled={readOnly}
-                  className={INPUT}
+                  className={FIELD}
                 />
               </label>
             </>
           )}
         </div>
         {form.span > (form.allDay ? 1 : 0) && (
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className={`text-xs ${MUTED_TEXT}`}>
             Ends {addDays(form.date, form.span)}
             {form.allDay ? ' (exclusive)' : ''}
           </p>
         )}
-        <label className="block text-sm font-medium">
+        <label className={LABEL}>
           Description
           <textarea
             rows={3}
             value={form.description}
             onChange={(e) => set('description', e.target.value)}
             disabled={readOnly}
-            className={INPUT}
+            className={FIELD}
           />
         </label>
-        {error && <p className="text-sm break-words text-red-700 dark:text-red-400">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          {!readOnly && (
-            <button
-              type="submit"
-              disabled={busy}
-              className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
-            >
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-          )}
-          {!readOnly && !isNew && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={busy}
-              className={`${BUTTON} text-red-700 dark:text-red-400`}
-            >
-              Delete
-            </button>
-          )}
-          <button type="button" onClick={onClose} className={BUTTON}>
-            {readOnly ? 'Close' : 'Cancel'}
-          </button>
-        </div>
+        {error && (
+          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm break-words text-red-700 dark:text-red-400">{error}</p>
+        )}
       </form>
-    </div>
+    </Modal>
   )
 }
