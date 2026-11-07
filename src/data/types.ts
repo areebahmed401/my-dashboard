@@ -1,4 +1,7 @@
-export type Domain = 'study' | 'job-search' | 'german' | 'claude'
+export type Domain = 'study' | 'job-search' | 'claude'
+
+// 1 = urgent, 4 = someday
+export type Priority = 1 | 2 | 3 | 4
 
 export interface Project {
   id: string
@@ -16,6 +19,8 @@ export interface BasicTask {
   status: 'todo' | 'doing' | 'done'
   due?: string // YYYY-MM-DD
   notes?: string
+  priority: Priority
+  estimateMin: number
   createdAt: string
   updatedAt: string
 }
@@ -32,6 +37,8 @@ export interface ClaudeTask {
   result?: string
   due?: string
   notes?: string
+  priority: Priority
+  estimateMin: number
   createdAt: string
   updatedAt: string
 }
@@ -39,11 +46,11 @@ export interface ClaudeTask {
 export type Task = BasicTask | ClaudeTask
 
 export interface DashboardData {
-  version: 1
+  version: 2
   projects: Project[]
   tasks: Task[]
 }
 
 export function emptyData(): DashboardData {
-  return { version: 1, projects: [], tasks: [] }
+  return { version: 2, projects: [], tasks: [] }
 }

@@ -4,7 +4,9 @@ import AddTask from './AddTask'
 import TaskEditor from './TaskEditor'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
+import EstimateBadge from './components/EstimateBadge'
 import IconButton from './components/IconButton'
+import PriorityPill from './components/PriorityPill'
 import StatusSelect from './components/StatusSelect'
 import { useDeleteWithUndo } from './components/useToast'
 import { touch } from './data/make'
@@ -13,13 +15,15 @@ import type { Domain, Project, Task } from './data/types'
 import { FOCUS_RING, MUTED_TEXT, STATUS_LABEL, SURFACE } from './theme'
 import { INPUT, compareTasks, statusesFor } from './ui'
 
-type SortKey = 'title' | 'project' | 'status' | 'due'
+type SortKey = 'title' | 'project' | 'status' | 'priority' | 'estimate' | 'due'
 type Sort = { key: SortKey; dir: 'asc' | 'desc' } | null
 
 const HEADERS: { key: SortKey; label: string }[] = [
   { key: 'title', label: 'Title' },
   { key: 'project', label: 'Project' },
   { key: 'status', label: 'Status' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'estimate', label: 'Est.' },
   { key: 'due', label: 'Due' },
 ]
 
@@ -60,6 +64,12 @@ function Row({
             label={`Status of ${task.title}`}
             accent={domain}
           />
+        </td>
+        <td className={CELL}>
+          <PriorityPill priority={task.priority} />
+        </td>
+        <td className={CELL}>
+          <EstimateBadge minutes={task.estimateMin} />
         </td>
         <td className={`${CELL} whitespace-nowrap`}>
           <DueBadge due={task.due} done={done} accent={domain} />
@@ -107,7 +117,7 @@ export default function TableView({
   const [statusFilter, setStatusFilter] = useState('')
   const statuses = statusesFor(domain)
   const names = new Map(projects.map((p) => [p.id, p.name]))
-  const colSpan = domain === 'claude' ? 6 : 5
+  const colSpan = domain === 'claude' ? 8 : 7
 
   const onSort = (key: SortKey) =>
     setSort((s) => (s?.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
@@ -123,6 +133,10 @@ export default function TableView({
     if (sort.key === 'due') {
       if (!a.due !== !b.due) return a.due ? -1 : 1 // empty due dates always last
       if (a.due && b.due && a.due !== b.due) c = a.due < b.due ? -1 : 1
+    } else if (sort.key === 'estimate') {
+      c = a.estimateMin - b.estimateMin
+    } else if (sort.key === 'priority') {
+      c = a.priority - b.priority
     } else if (sort.key === 'status') {
       c = statuses.indexOf(a.status) - statuses.indexOf(b.status)
     } else if (sort.key === 'project') {
