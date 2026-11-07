@@ -14,5 +14,5 @@ Deployed to GitHub Pages by `.github/workflows/deploy.yml` on push to `main`: ht
 ## Gotchas
 - `base: '/my-dashboard/'` in `vite.config.ts`; reference public assets via `import.meta.env.BASE_URL`.
 - Tabs use hash routing (`#study`, `#claude`, ...), so no server rewrites are needed on Pages.
-- Data (planned): private repo `my-dashboard-data` holding `data.json`, read/written via GitHub API with a fine-grained token kept in the browser. Never commit tokens or task data to this public repo.
+- Data: private repo `areebahmed401/my-dashboard-data` holding `data.json`, read/written via GitHub Contents API (`src/data/`: ops replayed on 409 conflicts) with a fine-grained token kept in the browser. Never commit tokens or task data to this public repo.
 - Calendar (planned): Google Calendar API via Google Identity Services OAuth in the browser.
