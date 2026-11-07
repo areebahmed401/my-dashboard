@@ -1,19 +1,14 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import Button from './components/Button'
 import { newBasicTask, newClaudeTask, touch } from './data/make'
 import { useData } from './data/store'
 import type { BasicTask, ClaudeTask, Domain, Task } from './data/types'
+import { MUTED_TEXT, STATUS_LABEL } from './theme'
+import { BASIC_STATUSES, CLAUDE_STATUSES, INPUT } from './ui'
 
-const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
-const PRIMARY =
-  'rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
-const INPUT =
-  'mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 font-normal dark:border-slate-700 dark:bg-slate-900'
-const LABEL = 'block text-sm font-medium'
-
-const BASIC_STATUSES: BasicTask['status'][] = ['todo', 'doing', 'done']
-const CLAUDE_STATUSES: ClaudeTask['status'][] = ['queued', 'in-progress', 'done', 'blocked']
+const LABEL = `block text-xs font-medium ${MUTED_TEXT}`
+const FIELD = `${INPUT} mt-1.5 block w-full`
 
 interface Props {
   domain: Domain
@@ -71,76 +66,67 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
     <form
       onSubmit={onSave}
       data-testid="task-editor"
-      className="space-y-3 rounded-md border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-950"
+      className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3 sm:p-4 dark:border-neutral-800 dark:bg-neutral-900/60"
     >
       <label className={LABEL}>
         Title
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={INPUT} />
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="What needs doing?"
+          className={FIELD}
+        />
       </label>
       {isClaude && (
         <>
           <label className={LABEL}>
             Repo
-            <input value={repo} onChange={(e) => setRepo(e.target.value)} className={INPUT} />
+            <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="owner/repo" className={FIELD} />
           </label>
           <label className={LABEL}>
             Brief
-            <textarea
-              rows={3}
-              value={brief}
-              onChange={(e) => setBrief(e.target.value)}
-              className={INPUT}
-            />
+            <textarea rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} className={FIELD} />
           </label>
           <label className={LABEL}>
             Acceptance criteria
-            <textarea
-              rows={3}
-              value={acceptance}
-              onChange={(e) => setAcceptance(e.target.value)}
-              className={INPUT}
-            />
+            <textarea rows={3} value={acceptance} onChange={(e) => setAcceptance(e.target.value)} className={FIELD} />
           </label>
         </>
       )}
-      <div className="flex flex-wrap gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className={LABEL}>
           Status
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={INPUT}>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={FIELD}>
             {(isClaude ? CLAUDE_STATUSES : BASIC_STATUSES).map((s) => (
               <option key={s} value={s}>
-                {s}
+                {STATUS_LABEL[s] ?? s}
               </option>
             ))}
           </select>
         </label>
         <label className={LABEL}>
           Due
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={INPUT} />
+          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={FIELD} />
         </label>
       </div>
       <label className={LABEL}>
         Notes
-        <textarea
-          rows={2}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className={INPUT}
-        />
+        <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={FIELD} />
       </label>
       {claude?.result && (
         <div className="text-sm">
-          <div className="font-medium">Result</div>
-          <p className="mt-1 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{claude.result}</p>
+          <div className={`text-xs font-medium ${MUTED_TEXT}`}>Result</div>
+          <p className="mt-1.5 whitespace-pre-wrap text-neutral-700 dark:text-neutral-300">{claude.result}</p>
         </div>
       )}
-      <div className="flex gap-2">
-        <button type="submit" disabled={!valid} className={PRIMARY}>
+      <div className="flex gap-2 pt-1">
+        <Button type="submit" variant="primary" accent={domain} disabled={!valid}>
           Save
-        </button>
-        <button type="button" onClick={onDone} className={BUTTON}>
+        </Button>
+        <Button variant="ghost" onClick={onDone}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   )

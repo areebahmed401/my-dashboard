@@ -1,18 +1,23 @@
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import EventEditor from './EventEditor'
 import type { EditTarget } from './EventEditor'
+import Button from './components/Button'
+import EmptyState from './components/EmptyState'
+import IconButton from './components/IconButton'
 import { useData } from './data/store'
 import type { Domain, Task } from './data/types'
+import { dueInfo } from './due'
+import type { DueTone } from './due'
 import { GoogleAuthError, canWrite, listCalendars, listEvents } from './gcal/api'
 import type { GCalendar, GEvent } from './gcal/api'
 import { connect, loadGis, useGcalStatus } from './gcal/auth'
 import { getHiddenCalendars, setHiddenCalendars } from './gcal/config'
 import { addDays, isTasksCalendar, syncTasks } from './gcal/taskSync'
+import { ACCENT, FOCUS_RING, MUTED_TEXT, SURFACE } from './theme'
+import type { AccentKey } from './theme'
 
-const BUTTON =
-  'rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:hover:bg-slate-800'
-const PRIMARY =
-  'rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300'
+const A = ACCENT.calendar
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const localYmd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -33,6 +38,8 @@ function rfc3339(ymd: string): string {
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Unknown error')
 
+const ERROR_NOTE = 'rounded-lg bg-red-500/10 px-3 py-2 text-sm break-words text-red-700 dark:text-red-400'
+
 function ConnectPanel({ reconnect }: { reconnect: boolean }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,15 +57,18 @@ function ConnectPanel({ reconnect }: { reconnect: boolean }) {
   }
 
   return (
-    <div className="mt-4 space-y-2">
-      <button type="button" onClick={onConnect} disabled={busy} className={PRIMARY}>
-        {reconnect ? 'Reconnect Google' : 'Connect Google Calendar'}
-      </button>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        Testing-mode Google app: only your account can sign in. Access lasts about an hour, then
-        click Reconnect.
-      </p>
-      {error && <p className="text-sm break-words text-red-700 dark:text-red-400">{error}</p>}
+    <div className="mt-4 space-y-3">
+      <EmptyState
+        icon={CalendarDays}
+        title={reconnect ? 'Google session expired' : 'Connect Google Calendar'}
+        description="Testing-mode Google app: only your account can sign in. Access lasts about an hour, then click Reconnect."
+        action={
+          <Button variant="primary" accent="calendar" onClick={onConnect} disabled={busy}>
+            {reconnect ? 'Reconnect Google' : 'Connect Google Calendar'}
+          </Button>
+        }
+      />
+      {error && <p className={ERROR_NOTE}>{error}</p>}
     </div>
   )
 }
@@ -83,6 +93,22 @@ interface DayItems {
 
 const NO_EVENTS: CalEvent[] = []
 let autoSynced = false
+
+// Task chip colours follow the same tones as DueBadge
+function taskChipClass(tone: DueTone, accent: AccentKey): string {
+  switch (tone) {
+    case 'overdue':
+      return 'border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400'
+    case 'today':
+      return 'border-yellow-500/50 bg-yellow-500/15 text-yellow-700 dark:text-yellow-400'
+    case 'soon':
+      return `border-current/40 ${ACCENT[accent].softBg} ${ACCENT[accent].text}`
+    case 'done':
+      return 'border-neutral-300 text-neutral-400 line-through dark:border-neutral-700 dark:text-neutral-500'
+    default:
+      return 'border-neutral-300 bg-neutral-100 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
+  }
+}
 
 function ConnectedCalendar() {
   const { data, status: dataStatus } = useData()
@@ -212,34 +238,38 @@ function ConnectedCalendar() {
     return `${fmt(a, false)} – ${fmt(b, true)}`
   })()
 
-  const colorOf = (e: CalEvent) => byId.get(e.calendarId)?.backgroundColor ?? '#64748b'
+  const colorOf = (e: CalEvent) => byId.get(e.calendarId)?.backgroundColor ?? '#737373'
   const timeOf = (e: CalEvent) =>
     new Date(e.start.dateTime ?? '').toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
 
   const chips = (d: DayItems) => (
     <>
-      {d.tasks.map(({ task, domain }) => (
-        <a
-          key={task.id}
-          href={domain ? `#${domain}` : undefined}
-          className={`block rounded border border-dashed border-slate-400 px-1.5 py-0.5 text-xs break-words hover:bg-slate-100 dark:border-slate-500 dark:hover:bg-slate-800 ${
-            task.status === 'done' ? 'text-slate-400 line-through dark:text-slate-500' : ''
-          }`}
-        >
-          Task: {task.title}
-        </a>
-      ))}
+      {d.tasks.map(({ task, domain }) => {
+        const done = task.status === 'done'
+        const tone = dueInfo(task.due, done).tone
+        return (
+          <a
+            key={task.id}
+            href={domain ? `#${domain}` : undefined}
+            className={`block rounded-md border border-dashed px-1.5 py-1 text-xs break-words transition-opacity duration-150 hover:opacity-80 ${FOCUS_RING} ${A.ring} ${taskChipClass(tone, domain ?? 'calendar')}`}
+          >
+            Task: {task.title}
+          </a>
+        )
+      })}
       {[...d.allDay, ...d.timed].map((e) => (
         <button
           key={`${e.calendarId}/${e.id}`}
           type="button"
           onClick={() => setEditing({ calendarId: e.calendarId, event: e, date: d.ymd })}
           style={{ borderLeftColor: colorOf(e) }}
-          className={`block w-full rounded border-l-4 px-1.5 py-0.5 text-left text-xs break-words hover:opacity-80 ${
-            e.start.date ? 'bg-slate-200 dark:bg-slate-700' : 'bg-slate-100 dark:bg-slate-800'
+          className={`block w-full rounded-md border-l-[3px] px-1.5 py-1 text-left text-xs break-words transition-colors duration-150 ${FOCUS_RING} ${A.ring} ${
+            e.start.date
+              ? 'bg-neutral-200/70 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700'
+              : 'bg-neutral-100 hover:bg-neutral-200/70 dark:bg-neutral-900 dark:hover:bg-neutral-800'
           }`}
         >
-          {e.start.dateTime && <span className="text-slate-500 tabular-nums dark:text-slate-400">{timeOf(e)} </span>}
+          {e.start.dateTime && <span className={`tabular-nums ${MUTED_TEXT}`}>{timeOf(e)} </span>}
           {e.summary || '(No title)'}
         </button>
       ))}
@@ -248,100 +278,134 @@ function ConnectedCalendar() {
 
   return (
     <div className="mt-4 space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <button type="button" aria-label="Previous week" onClick={() => setWeekStart(addDays(weekStart, -7))} className={BUTTON}>
-            ‹
-          </button>
-          <button type="button" onClick={() => setWeekStart(localYmd(mondayOf(new Date())))} className={BUTTON}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="inline-flex items-center gap-0.5 rounded-lg border border-neutral-200 bg-neutral-100 p-0.5 dark:border-neutral-800 dark:bg-neutral-950">
+          <IconButton
+            icon={ChevronLeft}
+            label="Previous week"
+            size="sm"
+            accent="calendar"
+            onClick={() => setWeekStart(addDays(weekStart, -7))}
+          />
+          <Button variant="ghost" size="sm" accent="calendar" onClick={() => setWeekStart(localYmd(mondayOf(new Date())))}>
             Today
-          </button>
-          <button type="button" aria-label="Next week" onClick={() => setWeekStart(addDays(weekStart, 7))} className={BUTTON}>
-            ›
-          </button>
+          </Button>
+          <IconButton
+            icon={ChevronRight}
+            label="Next week"
+            size="sm"
+            accent="calendar"
+            onClick={() => setWeekStart(addDays(weekStart, 7))}
+          />
         </div>
-        <span className="text-sm font-medium">{weekLabel}</span>
-        {loading && <span className="text-sm text-slate-500 dark:text-slate-400">Loading…</span>}
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button type="button" onClick={openNew} disabled={!calendars} className={PRIMARY}>
+        <span className="text-sm font-semibold tabular-nums">{weekLabel}</span>
+        {loading && <span className={`text-sm ${MUTED_TEXT}`}>Loading…</span>}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {syncMsg && (
+            <span
+              role="status"
+              className={`text-xs break-words ${syncMsg.ok ? MUTED_TEXT : 'text-red-600 dark:text-red-400'}`}
+            >
+              {syncMsg.text}
+            </span>
+          )}
+          <Button variant="primary" accent="calendar" icon={Plus} onClick={openNew} disabled={!calendars}>
             New event
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            icon={RefreshCw}
             onClick={() => void runSync()}
             disabled={!data || syncing}
             title={data ? undefined : 'Connect your data repo in Settings to sync tasks'}
-            className={BUTTON}
           >
             {syncing ? 'Syncing…' : 'Sync tasks to Google'}
-          </button>
+          </Button>
         </div>
       </div>
       {dataStatus === 'unconfigured' && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className={`text-sm ${MUTED_TEXT}`}>
           <a href="#settings" className="underline">
             Connect your data repo in Settings
           </a>{' '}
           to show and sync tasks.
         </p>
       )}
-      {syncMsg && (
-        <p
-          role="status"
-          className={`text-sm break-words ${syncMsg.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}
-        >
-          {syncMsg.text}
-        </p>
-      )}
       {shown.length > 0 && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {shown.map((c) => (
-            <label key={c.id} className="flex items-center gap-1.5 text-sm">
-              <input type="checkbox" checked={!hidden.includes(c.id)} onChange={() => toggle(c.id)} />
-              <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: c.backgroundColor }} />
-              {c.summary}
-            </label>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          {shown.map((c) => {
+            const on = !hidden.includes(c.id)
+            return (
+              <label key={c.id} className="cursor-pointer">
+                <input type="checkbox" className="peer sr-only" checked={on} onChange={() => toggle(c.id)} />
+                <span
+                  className={`inline-flex h-8 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-fuchsia-500/50 ${
+                    on
+                      ? 'border-neutral-200 bg-white text-neutral-800 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:shadow-none'
+                      : 'border-transparent text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300'
+                  }`}
+                >
+                  <span
+                    className={`size-2.5 rounded-full ${on ? '' : 'opacity-40'}`}
+                    style={{ backgroundColor: c.backgroundColor }}
+                  />
+                  {c.summary}
+                </span>
+              </label>
+            )
+          })}
         </div>
       )}
-      {(error || loadError) && (
-        <p className="text-sm break-words text-red-700 dark:text-red-400">{error || loadError}</p>
-      )}
+      {(error || loadError) && <p className={ERROR_NOTE}>{error || loadError}</p>}
 
-      <div className="hidden grid-cols-7 gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid dark:border-slate-800 dark:bg-slate-800">
-        {days.map((d) => (
-          <div
-            key={d.ymd}
-            className={`min-h-40 min-w-0 space-y-1 p-1.5 ${
-              d.ymd === today ? 'bg-amber-50 dark:bg-slate-900' : 'bg-white dark:bg-slate-950'
-            }`}
-          >
-            <div className={`text-xs font-medium ${d.ymd === today ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
-              {d.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+      <div className="hidden grid-cols-7 gap-2 lg:grid">
+        {days.map((d) => {
+          const isToday = d.ymd === today
+          return (
+            <div
+              key={d.ymd}
+              className={`${SURFACE} min-h-40 min-w-0 space-y-1.5 p-2 ${isToday ? 'ring-2 ring-fuchsia-500/40' : ''}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-medium ${isToday ? A.text : MUTED_TEXT}`}>
+                  {d.date.toLocaleDateString(undefined, { weekday: 'short' })}
+                </span>
+                <span
+                  className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold tabular-nums ${
+                    isToday ? 'bg-fuchsia-600 text-white dark:bg-fuchsia-500' : ''
+                  }`}
+                >
+                  {d.date.getDate()}
+                </span>
+              </div>
+              {chips(d)}
             </div>
-            {chips(d)}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      <div className="space-y-3 sm:hidden">
-        {days.map((d) => (
-          <section key={d.ymd} className="min-w-0">
-            <h3
-              className={`text-sm font-medium ${d.ymd === today ? 'text-amber-700 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}
-            >
-              {d.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
-              {d.ymd === today && ' · Today'}
-            </h3>
-            <div className="mt-1 space-y-1">
-              {d.tasks.length + d.allDay.length + d.timed.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500">Nothing scheduled</p>
-              ) : (
-                chips(d)
-              )}
-            </div>
-          </section>
-        ))}
+      <div className="space-y-5 lg:hidden">
+        {days.map((d) => {
+          const isToday = d.ymd === today
+          return (
+            <section key={d.ymd} className="min-w-0">
+              <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-1.5 text-sm font-semibold dark:border-neutral-800">
+                <span className={isToday ? A.text : ''}>
+                  {d.date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' })}
+                </span>
+                {isToday && (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${A.softBg} ${A.text}`}>Today</span>
+                )}
+              </h3>
+              <div className="mt-2 space-y-1.5">
+                {d.tasks.length + d.allDay.length + d.timed.length === 0 ? (
+                  <p className="text-xs text-neutral-400 dark:text-neutral-500">Nothing scheduled</p>
+                ) : (
+                  chips(d)
+                )}
+              </div>
+            </section>
+          )
+        })}
       </div>
 
       {editing && (

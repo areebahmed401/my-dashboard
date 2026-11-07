@@ -1,41 +1,51 @@
 import { useState } from 'react'
+import { Plus } from 'lucide-react'
+import Button from './components/Button'
 import TaskEditor from './TaskEditor'
 import type { Domain, Project } from './data/types'
-import { BUTTON, INPUT, MUTED } from './ui'
+import { MUTED_TEXT } from './theme'
+import { INPUT } from './ui'
 
-export default function AddTask({ domain, projects }: { domain: Domain; projects: Project[] }) {
+interface Props {
+  domain: Domain
+  projects: Project[]
+  selectedId?: string | null // project chip selected on the domain page
+}
+
+export default function AddTask({ domain, projects, selectedId }: Props) {
   const [open, setOpen] = useState(false)
   const [projectId, setProjectId] = useState('')
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className={BUTTON}>
+      <Button icon={Plus} accent={domain} onClick={() => setOpen(true)}>
         Add task
-      </button>
+      </Button>
     )
   }
 
   if (projects.length === 0) {
     return (
       <div className="flex items-center gap-3">
-        <span className={MUTED}>Create a project first</span>
-        <button type="button" onClick={() => setOpen(false)} className={BUTTON}>
+        <span className={`text-sm ${MUTED_TEXT}`}>Create a project first</span>
+        <Button variant="ghost" onClick={() => setOpen(false)}>
           Cancel
-        </button>
+        </Button>
       </div>
     )
   }
 
-  const chosen = projects.find((p) => p.id === projectId) ?? projects[0]
+  const chosen =
+    projects.find((p) => p.id === projectId) ?? projects.find((p) => p.id === selectedId) ?? projects[0]
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium">
+      <label className={`block text-xs font-medium ${MUTED_TEXT}`}>
         Project
         <select
           value={chosen.id}
           onChange={(e) => setProjectId(e.target.value)}
-          className={`${INPUT} mt-1 block`}
+          className={`${INPUT} mt-1.5 block w-full sm:max-w-xs`}
         >
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -44,12 +54,7 @@ export default function AddTask({ domain, projects }: { domain: Domain; projects
           ))}
         </select>
       </label>
-      <TaskEditor
-        key={chosen.id}
-        domain={domain}
-        projectId={chosen.id}
-        onDone={() => setOpen(false)}
-      />
+      <TaskEditor key={chosen.id} domain={domain} projectId={chosen.id} onDone={() => setOpen(false)} />
     </div>
   )
 }
