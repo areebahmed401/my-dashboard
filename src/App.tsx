@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import CalendarView from './CalendarView'
 import DomainView from './DomainView'
 import Settings from './Settings'
 import { useData } from './data/store'
@@ -128,7 +129,7 @@ export default function App() {
           <>
             <h2 className="text-2xl font-semibold">{current.label}</h2>
             {current.id === 'calendar' ? (
-              <p className="mt-2 text-slate-500 dark:text-slate-400">Coming soon.</p>
+              <CalendarView />
             ) : (
               <DomainBody domain={current.id} />
             )}
