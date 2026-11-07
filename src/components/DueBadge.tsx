@@ -20,7 +20,7 @@ function toneClass(tone: DueTone, accent: AccentKey): string {
     case 'soon':
       return `${ACCENT[accent].softBg} ${ACCENT[accent].text}`
     case 'done':
-      return 'text-neutral-400 line-through dark:text-neutral-500'
+      return 'text-neutral-500 line-through dark:text-neutral-400'
     default:
       return 'bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400'
   }

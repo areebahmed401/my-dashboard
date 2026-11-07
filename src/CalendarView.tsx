@@ -57,7 +57,7 @@ function ConnectPanel({ reconnect }: { reconnect: boolean }) {
   }
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-3 space-y-3">
       <EmptyState
         icon={CalendarDays}
         title={reconnect ? 'Google session expired' : 'Connect Google Calendar'}
@@ -104,7 +104,7 @@ function taskChipClass(tone: DueTone, accent: AccentKey): string {
     case 'soon':
       return `border-current/40 ${ACCENT[accent].softBg} ${ACCENT[accent].text}`
     case 'done':
-      return 'border-neutral-300 text-neutral-400 line-through dark:border-neutral-700 dark:text-neutral-500'
+      return 'border-neutral-300 text-neutral-500 line-through dark:border-neutral-700 dark:text-neutral-400'
     default:
       return 'border-neutral-300 bg-neutral-100 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400'
   }
@@ -277,7 +277,7 @@ function ConnectedCalendar() {
   )
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-3 space-y-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="inline-flex items-center gap-0.5 rounded-lg border border-neutral-200 bg-neutral-100 p-0.5 dark:border-neutral-800 dark:bg-neutral-950">
           <IconButton
