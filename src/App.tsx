@@ -63,7 +63,7 @@ function PageHeader({ route }: { route: Route }) {
       <span className={`flex size-9 items-center justify-center rounded-xl ${a?.softBg ?? 'bg-neutral-100 dark:bg-neutral-900'}`}>
         <Icon className={`size-5 ${a?.text ?? 'text-neutral-600 dark:text-neutral-300'}`} aria-hidden />
       </span>
-      <h1 className="text-2xl font-semibold tracking-tight">{a?.label ?? 'Settings'}</h1>
+      <h1 className="font-display text-2xl font-semibold tracking-tight">{a?.label ?? 'Settings'}</h1>
     </div>
   )
 }

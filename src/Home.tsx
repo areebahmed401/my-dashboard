@@ -61,7 +61,7 @@ export default function Home() {
     <div className="space-y-8">
       <header>
         <p className={`text-sm font-medium ${MUTED_TEXT}`}>{longDate}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{greeting(now.getHours())}</h1>
+        <h1 className="font-display mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{greeting(now.getHours())}</h1>
       </header>
 
       {data ? (
