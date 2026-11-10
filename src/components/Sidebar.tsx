@@ -1,4 +1,4 @@
-import { ExternalLink, Plus, Settings as SettingsIcon } from 'lucide-react'
+import { ExternalLink, Plus, Search, Settings as SettingsIcon } from 'lucide-react'
 import IconButton from './IconButton'
 import SyncStatus from './SyncStatus'
 import ThemeToggle from './ThemeToggle'
@@ -30,9 +30,10 @@ interface SidebarProps {
   route: Route
   counts: Partial<Record<AccentKey, number>>
   onQuickAdd: () => void
+  onSearch: () => void
 }
 
-export default function Sidebar({ route, counts, onQuickAdd }: SidebarProps) {
+export default function Sidebar({ route, counts, onQuickAdd, onSearch }: SidebarProps) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-neutral-200 bg-white md:flex dark:border-neutral-800/80 dark:bg-neutral-950">
       <a href="#home" className={`mx-3 mt-4 flex items-center gap-2.5 rounded-lg px-2 py-1.5 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}>
@@ -41,7 +42,7 @@ export default function Sidebar({ route, counts, onQuickAdd }: SidebarProps) {
       </a>
 
       <nav aria-label="Main" className="mt-6 flex flex-col gap-0.5 px-3">
-        {NAV_KEYS.map((key) => {
+        {NAV_KEYS.map((key, i) => {
           const a = ACCENT[key]
           const Icon = a.icon
           const active = route === key
@@ -63,12 +64,13 @@ export default function Sidebar({ route, counts, onQuickAdd }: SidebarProps) {
               {count !== undefined && count > 0 && (
                 <span className="text-xs text-neutral-400 tabular-nums dark:text-neutral-500">{count}</span>
               )}
+              <Kbd>{String(i + 1)}</Kbd>
             </a>
           )
         })}
       </nav>
 
-      <div className="mt-4 px-3">
+      <div className="mt-4 flex flex-col gap-1 px-3">
         <button
           type="button"
           onClick={onQuickAdd}
@@ -77,6 +79,15 @@ export default function Sidebar({ route, counts, onQuickAdd }: SidebarProps) {
           <Plus className="size-[18px]" aria-hidden />
           <span className="flex-1 text-left">Quick add</span>
           <Kbd>N</Kbd>
+        </button>
+        <button
+          type="button"
+          onClick={onSearch}
+          className={`flex h-9 w-full items-center gap-3 rounded-lg border border-neutral-200 px-2.5 text-sm font-medium text-neutral-700 shadow-sm transition-colors duration-150 hover:bg-neutral-50 hover:text-neutral-900 dark:border-neutral-800 dark:text-neutral-300 dark:shadow-none dark:hover:bg-neutral-900 dark:hover:text-white ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
+        >
+          <Search className="size-[18px]" aria-hidden />
+          <span className="flex-1 text-left">Search</span>
+          <Kbd>/</Kbd>
         </button>
       </div>
 

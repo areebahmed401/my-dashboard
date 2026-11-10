@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import { FolderPlus } from 'lucide-react'
 import Button from './Button'
 import EmptyState from './EmptyState'
 import Modal from './Modal'
 import { useToast } from './useToast'
+import { DEFAULT_ESTIMATE_MIN, DEFAULT_PRIORITY } from '../data/migrate'
 import { newBasicTask, newClaudeTask } from '../data/make'
 import { useData } from '../data/store'
-import type { Domain, Project } from '../data/types'
+import type { Domain, Priority, Project } from '../data/types'
 import { ACCENT, DOMAINS } from '../theme'
-import { INPUT } from '../ui'
+import { ESTIMATE_OPTIONS, INPUT, PRIORITIES, PRIORITY_LABEL, formatEstimate } from '../ui'
 
 const LAST_KEY = 'my-dashboard.quickadd.project'
 
@@ -70,6 +71,9 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
   const [title, setTitle] = useState('')
   const [due, setDue] = useState('')
   const [repo, setRepo] = useState('')
+  const [priority, setPriority] = useState<Priority>(DEFAULT_PRIORITY)
+  const [estimateMin, setEstimateMin] = useState(DEFAULT_ESTIMATE_MIN)
+  const titleRef = useRef<HTMLInputElement>(null)
 
   // Falls back when data arrives (or the project disappears) while open
   const projectId = projects.some((p) => p.id === picked) ? picked : defaultProject(projects, domain)
@@ -99,8 +103,8 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
     )
   }
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
+  // keepOpen: add the task, clear the title and stay for the next one
+  const add = (keepOpen: boolean) => {
     const t = title.trim()
     if (!t || !project) return
     const task =
@@ -112,24 +116,48 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
             brief: '',
             acceptance: '',
             due: due || undefined,
+            priority,
+            estimateMin,
           })
-        : newBasicTask(project.id, { title: t, status: 'todo', due: due || undefined })
+        : newBasicTask(project.id, { title: t, status: 'todo', due: due || undefined, priority, estimateMin })
     apply({ type: 'upsertTask', task })
     writeLast(project.id)
     toast({ message: `Added to ${project.name}` })
-    onClose()
+    if (keepOpen) {
+      setTitle('')
+      titleRef.current?.focus()
+    } else {
+      onClose()
+    }
   }
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    add(false)
+  }
+
+  const onKeyDown = (e: KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      add(true)
+    }
+  }
+
+  const estimates = ESTIMATE_OPTIONS.includes(estimateMin)
+    ? ESTIMATE_OPTIONS
+    : [...ESTIMATE_OPTIONS, estimateMin].sort((a, b) => a - b)
 
   const accent = project?.domain ?? 'home'
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} onKeyDown={onKeyDown} className="space-y-4">
       <div>
         <label htmlFor="qa-title" className={LABEL}>
           Title
         </label>
         <input
           id="qa-title"
+          ref={titleRef}
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -137,8 +165,8 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
           className={`${INPUT} w-full`}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <div className="min-w-0">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-[1fr_auto_auto_auto]">
+        <div className="col-span-2 min-w-0 sm:col-span-1">
           <label htmlFor="qa-project" className={LABEL}>
             Project
           </label>
@@ -175,6 +203,40 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
             className={`${INPUT} w-full`}
           />
         </div>
+        <div>
+          <label htmlFor="qa-priority" className={LABEL}>
+            Priority
+          </label>
+          <select
+            id="qa-priority"
+            value={priority}
+            onChange={(e) => setPriority(Number(e.target.value) as Priority)}
+            className={`${INPUT} w-full`}
+          >
+            {PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY_LABEL[p]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="qa-estimate" className={LABEL}>
+            Estimate
+          </label>
+          <select
+            id="qa-estimate"
+            value={estimateMin}
+            onChange={(e) => setEstimateMin(Number(e.target.value))}
+            className={`${INPUT} w-full`}
+          >
+            {estimates.map((m) => (
+              <option key={m} value={m}>
+                {formatEstimate(m)}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       {project?.domain === 'claude' && (
         <div>
@@ -192,7 +254,8 @@ function QuickAddForm({ onClose, domain }: { onClose: () => void; domain?: Domai
       )}
       <div className="flex items-center justify-between gap-2 pt-1">
         <span className="hidden text-xs text-neutral-400 sm:inline dark:text-neutral-500">
-          <kbd className="font-sans">Enter</kbd> to add · <kbd className="font-sans">Esc</kbd> to close
+          <kbd className="font-sans">Enter</kbd> to add · <kbd className="font-sans">Ctrl+Enter</kbd> to add another ·{' '}
+          <kbd className="font-sans">Esc</kbd> to close
         </span>
         <div className="ml-auto flex gap-2">
           <Button variant="ghost" onClick={onClose}>

@@ -6,11 +6,17 @@ import { DEFAULT_ESTIMATE_MIN, DEFAULT_PRIORITY } from './data/migrate'
 import { newBasicTask, newClaudeTask, touch } from './data/make'
 import { useData } from './data/store'
 import type { BasicTask, ClaudeTask, Domain, Priority, Task } from './data/types'
+import { addDaysYmd, ymdOf } from './plan/plan'
 import { MUTED_TEXT, STATUS_LABEL } from './theme'
 import { BASIC_STATUSES, CLAUDE_STATUSES, ESTIMATE_OPTIONS, INPUT, PRIORITIES, PRIORITY_LABEL, formatEstimate } from './ui'
 
 const LABEL = `block text-xs font-medium ${MUTED_TEXT}`
 const FIELD = `${INPUT} mt-1.5 block w-full`
+const DUE_SHORTCUTS = [
+  ['Today', 0],
+  ['Tomorrow', 1],
+  ['Next week', 7],
+] as const
 
 interface Props {
   domain: Domain
@@ -122,10 +128,19 @@ export default function TaskEditor({ domain, projectId, task, onDone }: Props) {
             ))}
           </select>
         </label>
-        <label className={LABEL}>
-          Due
-          <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={FIELD} />
-        </label>
+        <div>
+          <label className={LABEL}>
+            Due
+            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className={FIELD} />
+          </label>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {DUE_SHORTCUTS.map(([label, days]) => (
+              <Button key={label} size="sm" variant="ghost" onClick={() => setDue(addDaysYmd(ymdOf(new Date()), days))}>
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className={LABEL}>

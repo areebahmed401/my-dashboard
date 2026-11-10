@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CalendarDays,
   CalendarRange,
-  Check,
   CircleAlert,
   Database,
   PartyPopper,
@@ -15,11 +14,13 @@ import CalendarView from './CalendarView'
 import Card from './components/Card'
 import DueBadge from './components/DueBadge'
 import EmptyState from './components/EmptyState'
+import DoneButton from './components/DoneButton'
 import EstimateBadge from './components/EstimateBadge'
 import PriorityPill from './components/PriorityPill'
 import ProgressBar from './components/ProgressBar'
 import StatCard from './components/StatCard'
 import { buttonClass } from './components/classes'
+import { useOpenTask } from './components/useTaskDialog'
 import { useToast } from './components/useToast'
 import { touch } from './data/make'
 import { useData } from './data/store'
@@ -175,8 +176,6 @@ function TaskSections({ data }: { data: DashboardData }) {
   const overdue = count('overdue')
   return (
     <>
-      <PlanSection data={data} />
-
       <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Overdue"
@@ -191,37 +190,43 @@ function TaskSections({ data }: { data: DashboardData }) {
         <StatCard label="Claude queue" value={count('claude')} icon={Sparkles} tone="claude" active={filter === 'claude'} onClick={() => pick('claude')} />
       </section>
 
-      <section ref={focusRef} aria-labelledby="focus-title" className="scroll-mt-20">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 id="focus-title" className={SECTION_TITLE}>
-            Focus
-            <span className={`ml-2 font-normal tabular-nums ${MUTED_TEXT}`}>{focus.length}</span>
-          </h2>
-          {filter && (
-            <button
-              type="button"
-              onClick={() => setFilter(null)}
-              className={`inline-flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pr-1.5 pl-2.5 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
-            >
-              {FILTER_LABEL[filter]}
-              <X className="size-3.5" aria-label="Clear filter" />
-            </button>
-          )}
+      <div className="grid gap-8 xl:grid-cols-2 xl:items-start">
+        <div className="min-w-0">
+          <PlanSection data={data} />
         </div>
-        {focus.length === 0 ? (
-          <EmptyState
-            icon={PartyPopper}
-            title={filter ? `Nothing in ${FILTER_LABEL[filter].toLowerCase()}` : 'Nothing due this week 🎉'}
-            description={filter ? undefined : 'Enjoy the calm, or press N to add something.'}
-          />
-        ) : (
-          <ul className={`${SURFACE} divide-y divide-neutral-100 overflow-hidden dark:divide-neutral-800/80`}>
-            {focus.map((r) => (
-              <FocusRow key={r.task.id} row={r} onDone={() => markDone(r.task)} />
-            ))}
-          </ul>
-        )}
-      </section>
+
+        <section ref={focusRef} aria-labelledby="focus-title" className="min-w-0 scroll-mt-20">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 id="focus-title" className={SECTION_TITLE}>
+              Focus
+              <span className={`ml-2 font-normal tabular-nums ${MUTED_TEXT}`}>{focus.length}</span>
+            </h2>
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter(null)}
+                className={`inline-flex items-center gap-1 rounded-full bg-neutral-100 py-0.5 pr-1.5 pl-2.5 text-xs font-medium text-neutral-700 transition-colors duration-150 hover:bg-neutral-200 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 ${FOCUS_RING} focus-visible:ring-neutral-500/40`}
+              >
+                {FILTER_LABEL[filter]}
+                <X className="size-3.5" aria-label="Clear filter" />
+              </button>
+            )}
+          </div>
+          {focus.length === 0 ? (
+            <EmptyState
+              icon={PartyPopper}
+              title={filter ? `Nothing in ${FILTER_LABEL[filter].toLowerCase()}` : 'Nothing due this week 🎉'}
+              description={filter ? undefined : 'Enjoy the calm, or press N to add something.'}
+            />
+          ) : (
+            <ul className={`${SURFACE} divide-y divide-neutral-100 overflow-hidden dark:divide-neutral-800/80`}>
+              {focus.map((r) => (
+                <FocusRow key={r.task.id} row={r} onDone={() => markDone(r.task)} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </>
   )
 }
@@ -229,32 +234,28 @@ function TaskSections({ data }: { data: DashboardData }) {
 function FocusRow({ row, onDone }: { row: Row; onDone: () => void }) {
   const { task, project } = row
   const a = ACCENT[project.domain]
+  const openTask = useOpenTask()
   return (
-    <li className="group flex items-center gap-3 px-3 transition-colors duration-150 hover:bg-neutral-50 sm:px-4 dark:hover:bg-neutral-900/60">
+    <li className="group flex items-start gap-3 px-3 transition-colors duration-150 hover:bg-neutral-50 sm:px-4 dark:hover:bg-neutral-900/60">
+      <DoneButton title={task.title} onClick={onDone} className="mt-3" />
       <button
         type="button"
-        onClick={onDone}
-        aria-label={`Mark "${task.title}" done`}
-        title="Mark done"
-        className={`flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] border-neutral-300 text-transparent transition-colors duration-150 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:border-neutral-600 dark:hover:text-emerald-400 ${FOCUS_RING} focus-visible:ring-emerald-500/50`}
+        onClick={() => openTask(task.id)}
+        className="flex min-w-0 flex-1 items-start gap-3 py-3 text-left outline-none focus-visible:underline"
       >
-        <Check className="size-3" strokeWidth={3} aria-hidden />
-      </button>
-      <a
-        href={`#${project.domain}`}
-        className="flex min-w-0 flex-1 items-center gap-3 py-3 outline-none focus-visible:underline"
-      >
-        <span className={`size-2 shrink-0 rounded-full ${a.dot}`} aria-hidden />
+        <span className={`mt-1.5 size-2 shrink-0 rounded-full ${a.dot}`} aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">{task.title}</span>
           <span className={`block truncate text-xs ${MUTED_TEXT}`}>
             {a.label} · {project.name}
           </span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <PriorityPill priority={task.priority} />
+            <EstimateBadge minutes={task.estimateMin} />
+            <DueBadge due={task.due} accent={project.domain} />
+          </span>
         </span>
-        <PriorityPill priority={task.priority} />
-        <EstimateBadge minutes={task.estimateMin} />
-        <DueBadge due={task.due} accent={project.domain} />
-      </a>
+      </button>
     </li>
   )
 }

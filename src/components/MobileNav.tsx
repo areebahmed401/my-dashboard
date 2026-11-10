@@ -1,10 +1,10 @@
-import { Plus, Settings as SettingsIcon } from 'lucide-react'
+import { Plus, Search, Settings as SettingsIcon } from 'lucide-react'
 import IconButton from './IconButton'
 import { ACCENT, NAV_KEYS } from '../theme'
 import type { Route } from '../theme'
 
-// Sticky top bar for phones: current page, quick add, settings
-export function MobileTopBar({ route, onQuickAdd }: { route: Route; onQuickAdd: () => void }) {
+// Sticky top bar for phones: current page, search, quick add, settings
+export function MobileTopBar({ route, onQuickAdd, onSearch }: { route: Route; onQuickAdd: () => void; onSearch: () => void }) {
   const a = route === 'settings' ? null : ACCENT[route]
   const Icon = a?.icon ?? SettingsIcon
   return (
@@ -13,6 +13,7 @@ export function MobileTopBar({ route, onQuickAdd }: { route: Route; onQuickAdd: 
         <Icon className={`size-4 ${a?.text ?? 'text-neutral-600 dark:text-neutral-300'}`} aria-hidden />
       </span>
       <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{a?.label ?? 'Settings'}</span>
+      <IconButton icon={Search} label="Search" onClick={onSearch} />
       <IconButton icon={Plus} label="Quick add" onClick={onQuickAdd} />
       <IconButton icon={SettingsIcon} label="Settings" href="#settings" active={route === 'settings'} />
     </header>

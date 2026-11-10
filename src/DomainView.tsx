@@ -16,6 +16,7 @@ import Segmented from './components/Segmented'
 import StatusSelect from './components/StatusSelect'
 import TodoList from './components/TodoList'
 import { useDeleteWithUndo, useToast } from './components/useToast'
+import ReviewInbox from './claude/ReviewInbox'
 import { groupProjects } from './claude/groups'
 import { buildQueue } from './claude/queue'
 import { ensureClaudeProjects } from './claude/seed'
@@ -256,11 +257,11 @@ export default function DomainView({ domain }: { domain: Domain }) {
     <div className="mt-4 space-y-4">
       <Card className={`${a.gradient} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
         <div className="flex items-center gap-3">
-          <span className={`flex size-10 items-center justify-center rounded-xl ${a.softBg} ${a.text}`}>
+          <span className={`flex size-10 items-center justify-center rounded-xl md:hidden ${a.softBg} ${a.text}`}>
             <Icon className="size-5" aria-hidden />
           </span>
           <div>
-            <div className="font-semibold">{a.label}</div>
+            <div className="font-semibold md:hidden">{a.label}</div>
             <div className={`text-xs tabular-nums ${MUTED_TEXT}`}>
               {projects.length} {projects.length === 1 ? 'project' : 'projects'} · {domainTasks.length}{' '}
               {domainTasks.length === 1 ? 'task' : 'tasks'}
@@ -283,6 +284,8 @@ export default function DomainView({ domain }: { domain: Domain }) {
           ))}
         </dl>
       </Card>
+
+      {domain === 'claude' && <ReviewInbox tasks={domainTasks} projects={projects} />}
 
       <div className="flex items-center gap-2">
         <div
