@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarCheck, CalendarDays, Check, ChevronDown, Clock, Coffee, ListChecks, RefreshCw } from 'lucide-react'
+import { CalendarCheck, CalendarDays, ChevronDown, Clock, Coffee, ListChecks, RefreshCw } from 'lucide-react'
 import Button from '../components/Button'
+import DoneButton from '../components/DoneButton'
 import DueBadge from '../components/DueBadge'
 import EmptyState from '../components/EmptyState'
 import EstimateBadge from '../components/EstimateBadge'
 import IconButton from '../components/IconButton'
 import PriorityPill from '../components/PriorityPill'
 import Segmented from '../components/Segmented'
+import { useOpenTask } from '../components/useTaskDialog'
 import { useToast } from '../components/useToast'
 import { touch } from '../data/make'
 import { useData } from '../data/store'
@@ -32,6 +34,7 @@ const LIST = `${SURFACE} divide-y divide-neutral-100 overflow-hidden dark:divide
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const clock = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
+const TITLE_BUTTON = `min-w-0 truncate text-left text-sm hover:underline ${FOCUS_RING} focus-visible:ring-neutral-500/40`
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Unknown error')
 
 function dayLabel(ymd: string): string {
@@ -40,6 +43,7 @@ function dayLabel(ymd: string): string {
 
 export default function PlanSection({ data }: { data: DashboardData }) {
   const { apply } = useData()
+  const openTask = useOpenTask()
   const toast = useToast()
   const [view, setView] = useState<View>('today')
   const [editing, setEditing] = useState(false)
@@ -161,7 +165,11 @@ export default function PlanSection({ data }: { data: DashboardData }) {
                 return (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 sm:px-4">
                     <span className={`size-2 shrink-0 rounded-full ${ACCENT[domain].dot}`} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
+                    <span className="min-w-0 flex-1">
+                      <button type="button" onClick={() => openTask(t.id)} className={`max-w-full ${TITLE_BUTTON}`}>
+                        {t.title}
+                      </button>
+                    </span>
                     <PriorityPill priority={t.priority} />
                     <EstimateBadge minutes={t.estimateMin} />
                     <DueBadge due={t.due} accent={domain} />
@@ -297,25 +305,22 @@ function TimeCol({ start, end }: { start: Date; end: Date }) {
 
 function SlotRow({ slot, domain, onDone }: { slot: Slot; domain: Domain; onDone: (task: Task) => void }) {
   const { task } = slot
+  const openTask = useOpenTask()
   return (
     <li className="flex gap-3 px-3 py-2.5 sm:px-4">
       <TimeCol start={slot.start} end={slot.end} />
-      <button
-        type="button"
-        onClick={() => onDone(task)}
-        aria-label={`Mark "${task.title}" done`}
-        title="Mark done"
-        className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] border-neutral-300 text-transparent transition-colors duration-150 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:border-neutral-600 dark:hover:text-emerald-400 ${FOCUS_RING} focus-visible:ring-emerald-500/50`}
-      >
-        <Check className="size-3" strokeWidth={3} aria-hidden />
-      </button>
+      <DoneButton title={task.title} onClick={() => onDone(task)} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className={`size-2 shrink-0 rounded-full ${ACCENT[domain].dot}`} aria-hidden />
-          <span className="min-w-0 truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+          <button
+            type="button"
+            onClick={() => openTask(task.id)}
+            className={`${TITLE_BUTTON} font-medium text-neutral-900 dark:text-neutral-100`}
+          >
             {slot.review && <span className="text-violet-700 dark:text-violet-400">Review: </span>}
             {task.title}
-          </span>
+          </button>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <PriorityPill priority={task.priority} />
